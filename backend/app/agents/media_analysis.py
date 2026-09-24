@@ -5,6 +5,7 @@ from collections import Counter, defaultdict
 from pydantic import BaseModel, Field
 
 from app.config import settings
+from app.models import EvidenceStance
 from app.services.llm import LLMClient
 
 

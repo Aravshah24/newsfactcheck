@@ -366,6 +366,26 @@ def test_verification_agent_uses_live_llm_when_configured() -> None:
     assert result["context_evidence_count"] == 1
 
 
+def test_verification_agent_counts_enum_stances_by_value() -> None:
+    subclaim = Mock(id=8, text="The event happened.")
+    evidence_items = [
+        Mock(stance=EvidenceStance.SUPPORTS, summary="Support 1"),
+        Mock(stance=EvidenceStance.SUPPORTS, summary="Support 2"),
+        Mock(stance=EvidenceStance.CONTRADICTS, summary="Contradiction"),
+        Mock(stance=EvidenceStance.CONTEXT, summary="Context"),
+        Mock(stance=EvidenceStance.NEUTRAL, summary="Neutral"),
+        Mock(stance=EvidenceStance.UNKNOWN, summary="Unknown"),
+    ]
+
+    with patch("app.agents.verification.LLMClient.generate_structured", side_effect=RuntimeError("fallback")):
+        result = VerificationAgent().verify(subclaim, evidence_items)
+
+    assert result["supporting_evidence_count"] == 2
+    assert result["contradicting_evidence_count"] == 1
+    assert result["context_evidence_count"] == 1
+    assert result["verdict"] == "partially_supported"
+
+
 def test_media_analysis_isolated_from_verdict_and_writer_preserves_verdict() -> None:
     media = MediaAnalysisAgent().analyze(
         "The policy caused spending to rise.",

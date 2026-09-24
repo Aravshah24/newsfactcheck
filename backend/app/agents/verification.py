@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from app.config import settings
-from app.models import VerificationVerdict
+from app.models import EvidenceStance, VerificationVerdict
 from app.services.llm import LLMClient
 
 
@@ -21,6 +20,11 @@ class VerificationSchema(BaseModel):
 class VerificationAgent:
     """Phase 1 evidence-based verdicting based on evidence strength, contradictions, and completeness."""
 
+    @staticmethod
+    def _stance_value(item) -> str:
+        stance = getattr(item, "stance", "unknown")
+        return str(getattr(stance, "value", stance)).lower()
+
     def verify(
         self,
         subclaim,
@@ -30,9 +34,6 @@ class VerificationAgent:
         independence_summary: dict | None = None,
     ) -> dict:
         items = evidence_items or []
-        supporting = [item for item in items if getattr(item, "stance", None) and str(item.stance).lower() == "supports"]
-        contradicting = [item for item in items if getattr(item, "stance", None) and str(item.stance).lower() == "contradicts"]
-        context = [item for item in items if getattr(item, "stance", None) and str(item.stance).lower() == "context"]
         supporting = [item for item in items if self._stance_value(item) == EvidenceStance.SUPPORTS.value]
         contradicting = [item for item in items if self._stance_value(item) == EvidenceStance.CONTRADICTS.value]
         context = [item for item in items if self._stance_value(item) == EvidenceStance.CONTEXT.value]
@@ -40,7 +41,7 @@ class VerificationAgent:
 
         try:
             evidence_text = "\n".join(
-                f"- {getattr(item, 'summary', str(item))} [{getattr(item, 'stance', 'unknown')}]"
+                f"- {getattr(item, 'summary', str(item))} [{self._stance_value(item)}]"
                 for item in items[:20]
             ) or "No evidence items were supplied to the model."
             response = LLMClient().generate_structured(

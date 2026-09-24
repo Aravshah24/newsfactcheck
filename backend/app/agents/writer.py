@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.config import settings
+from app.models import EvidenceStance
 from app.services.llm import LLMClient
 
 

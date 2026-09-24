@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+.next/
+out/
+coverage/
+
+# Environment
+.env
+.env.*
+!.env.example
+.env.local
+.env.*.local
+
+# OS/editor
+.DS_Store
+.vscode/
+*.swp
+Thumbs.db
+
+# Build artifacts
+build/
+dist/
+
+# Data and local db
+*.sqlite
+*.sqlite3
+*.db
+
+
+# IDE
+.vscode/
+.idea/
+
+# Logs / temporary output
+*.log
+*.tmp

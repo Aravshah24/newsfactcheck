@@ -1,0 +1,1 @@
+"""NewsFactCheck backend package."""

@@ -55,6 +55,8 @@ class DocumentNormalizer:
         publisher = cls.get_or_create_publisher(session, publisher_name, domain)
 
         existing = None
+        # Pending-but-unflushed rows are invisible to a query when autoflush is off,
+        # so they are checked first and the query result never overwrites a hit.
         for pending in session.new:
             if isinstance(pending, Document):
                 if url and pending.url == url:
@@ -63,10 +65,16 @@ class DocumentNormalizer:
                 if canonical_url and pending.canonical_url == canonical_url:
                     existing = pending
                     break
-        if url:
-            existing = session.query(Document).filter(Document.url == url).first()
+
+        if existing is None and url:
+            existing = session.query(Document).filter(Document.url == url).order_by(Document.id).first()
         if existing is None and canonical_url:
-            existing = session.query(Document).filter(Document.canonical_url == canonical_url).first()
+            existing = (
+                session.query(Document)
+                .filter(Document.canonical_url == canonical_url)
+                .order_by(Document.id)
+                .first()
+            )
         if existing is not None:
             return existing
 

@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     DATABASE_URL: str = "postgresql+psycopg://newsfactcheck:change_me@localhost:5432/newsfactcheck"
     API_V1_PREFIX: str = "/api/v1"
-
+    DEMO_MODE: bool = False
 
     POSTGRES_DB: str | None = None
     POSTGRES_USER: str | None = None
@@ -16,7 +16,15 @@ class Settings(BaseSettings):
     NEXT_PUBLIC_API_URL: str | None = None
 
     LLM_PROVIDER: str = "gemini"
-    LLM_MODEL: str = "gemini-2.5-flash"
+    LLM_MODEL: str = "gemini-3.8-flash"
+    LLM_FALLBACK_MODELS: list[str] = [
+        "gemini-3.8-flash",
+        "gemini-flash-latest",
+        "gemini-2.5-flash",
+    ]
+    LLM_TIMEOUT_SECONDS: float = 60.0
+    LLM_MAX_ATTEMPTS: int = 3
+    LLM_RETRY_BACKOFF_SECONDS: float = 1.5
     GEMINI_API_KEY: str | None = None
     GOOGLE_API_KEY: str | None = None
     OPENAI_API_KEY: str | None = None
@@ -35,6 +43,18 @@ class Settings(BaseSettings):
     PRIMARY_SOURCE_PROVIDER: str | None = None
     PRIMARY_SOURCE_API_KEY: str | None = None
     PRIMARY_SOURCE_ENDPOINT: str | None = None
+    PRIMARY_SOURCE_MAX_RESULTS: int = 5
+
+    # Evidence extraction controls
+    EVIDENCE_MAX_DOCUMENTS_ASSESSED: int = 16
+    EVIDENCE_SUBCLAIM_BATCH_SIZE: int = 4
+    EVIDENCE_DOCUMENT_BATCH_SIZE: int = 4
+    EVIDENCE_MIN_EXCERPT_CHARS: int = 40
+    EVIDENCE_MAX_EXCERPT_CHARS: int = 4000
+
+    SEARCH_MAX_QUERIES_PER_SUBCLAIM: int = 4
+    SEARCH_MAX_RESULTS_PER_QUERY: int = 5
+    OPPOSITION_MAX_RESULTS: int = 5
 
     model_config = SettingsConfigDict(
         env_file=".env",

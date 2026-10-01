@@ -1,9 +1,11 @@
-import './globals.css';
 import type { Metadata } from 'next';
 
+import './globals.css';
+
 export const metadata: Metadata = {
-  title: 'NewsFactCheck',
-  description: 'Research-oriented claim verification workspace',
+  title: 'FactTrace — Evidence-backed claim investigation',
+  description:
+    'Investigate a news claim by decomposing it, retrieving sources, comparing evidence dimension by dimension, and weighing conclusions by source independence.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

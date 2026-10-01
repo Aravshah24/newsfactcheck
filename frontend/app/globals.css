@@ -2,22 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-paper-50 text-ink-800 antialiased;
+    font-feature-settings: 'kern', 'liga';
+  }
+
+  /* Visible, consistent focus ring for every interactive element. */
+  :where(a, button, input, textarea, select, [tabindex]):focus-visible {
+    @apply outline-none ring-2 ring-ink-800 ring-offset-2 ring-offset-paper-50;
+  }
+
+  ::selection {
+    @apply bg-ink-800 text-paper-50;
+  }
 }
 
-html {
-  scroll-behavior: smooth;
+@layer components {
+  /* Numeric data aligns in columns and should never reflow between renders. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .label-micro {
+    @apply text-2xs font-semibold uppercase tracking-[0.14em] text-ink-400;
+  }
+
+  /* The long report body is prose, not data: give it a comfortable measure. */
+  .report-prose {
+    @apply whitespace-pre-wrap break-words text-[0.95rem] leading-[1.75] text-ink-700;
+  }
 }
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  background: #020617;
-  color: #e2e8f0;
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-* {
-  box-sizing: border-box;
+/* Respect a reduced-motion preference for every animation used above. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

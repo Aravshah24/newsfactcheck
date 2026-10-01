@@ -7,8 +7,11 @@ from app.config import settings
 
 app = FastAPI(
     title=settings.APP_NAME,
-    version="0.1.0",
-    description="Research-oriented multi-agent news claim verification system skeleton.",
+    version="0.2.0",
+    description=(
+        "Multi-agent news claim verification. Retrieval produces documents; evidence is "
+        "assessed against the complete proposition; verdicts are weighted by source independence."
+    ),
 )
 
 app.include_router(health_router)
@@ -24,12 +27,23 @@ app.add_middleware(
 
 
 @app.get("/health")
-def health_check() -> dict[str, str]:
+def health_check() -> dict:
+    from app.services.llm import llm_diagnostics
+
     return {
         "status": "ok",
         "service": settings.APP_NAME,
         "environment": settings.APP_ENV,
+        "llm": llm_diagnostics(probe=False),
     }
+
+
+@app.get("/health/llm")
+def llm_health() -> dict:
+    """Live LLM check. Reports exactly what to fix when reasoning is unavailable."""
+    from app.services.llm import llm_diagnostics
+
+    return llm_diagnostics(probe=True)
 
 
 @app.get("/")

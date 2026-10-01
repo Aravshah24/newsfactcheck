@@ -1,48 +1,78 @@
 from __future__ import annotations
 
+import logging
+
+from app.config import settings
 from app.models import EvidenceAssessmentStatus, EvidenceCategory, EvidenceItem, EvidenceStance
+from app.services.entailment import EntailmentEngine, EntailmentResult
+from app.services.proposition import Proposition
+
+logger = logging.getLogger(__name__)
+
+_STANCE_MAP = {
+    "supports": EvidenceStance.SUPPORTS,
+    "contradicts": EvidenceStance.CONTRADICTS,
+    "context": EvidenceStance.CONTEXT,
+    "neutral": EvidenceStance.NEUTRAL,
+    "unknown": EvidenceStance.UNKNOWN,
+}
 
 
 class EvidenceExtractor:
-    """Convert source documents into raw evidence attached to a subclaim."""
+    """Convert a retrieved document into assessed evidence for one subclaim.
 
-    def extract(self, subclaim, document, raw_text: str, extraction_method: str = "rule_based") -> EvidenceItem:
-        text = (raw_text or document.text_content or subclaim.text or "").strip()
+    A retrieved document is not evidence. This extractor only records an evidence
+    item once the document has been compared against the complete proposition of
+    the subclaim along every dimension. Topical overlap alone never yields
+    ``SUPPORTS``.
+    """
+
+    def __init__(self, engine: EntailmentEngine | None = None):
+        self.engine = engine or EntailmentEngine()
+
+    def extract(
+        self,
+        subclaim,
+        document,
+        raw_text: str | None = None,
+        extraction_method: str | None = None,
+        proposition: Proposition | None = None,
+        assessment: EntailmentResult | None = None,
+    ) -> EvidenceItem:
+        text = (raw_text or getattr(document, "text_content", None) or "").strip()
         if not text:
-            text = "No extractable text was available."
+            text = (getattr(document, "title", None) or "").strip()
+        title = getattr(document, "title", None)
 
-        summary = text[:512] if len(text) > 512 else text
-        stance = self._infer_stance(subclaim.text, text)
+        prop = proposition or self.engine.proposition_for(getattr(subclaim, "text", str(subclaim)))
+        if assessment is None:
+            assessment = self.engine.assess(prop, text, title or "")
+        result = assessment
+        stance = _STANCE_MAP.get(result.stance, EvidenceStance.UNKNOWN)
+        method = extraction_method or result.method
 
-        evidence = EvidenceItem(
+        excerpt = text
+        limit = max(settings.EVIDENCE_MIN_EXCERPT_CHARS, settings.EVIDENCE_MAX_EXCERPT_CHARS)
+        if len(excerpt) > limit:
+            excerpt = excerpt[:limit]
+
+        return EvidenceItem(
             claim_id=subclaim.claim_id,
             subclaim_id=subclaim.id,
             document_id=document.id,
-            category=EvidenceCategory.RAW,
+            category=EvidenceCategory.AGENT_INTERPRETATION,
             stance=stance,
-            assessment_status=EvidenceAssessmentStatus.UNASSESSED,
-            summary=summary,
-            raw_excerpt=text,
+            assessment_status=EvidenceAssessmentStatus.ASSESSED,
+            summary=result.rationale[:512] if result.rationale else title or "Assessed document.",
+            raw_excerpt=excerpt or None,
             retrieval_channel="retrieval",
-            url=document.url,
+            url=getattr(document, "url", None),
+            confidence_score=round(float(result.confidence), 3),
             extra_metadata={
                 "evidence_text": text,
-                "extraction_method": extraction_method,
-                "source_title": document.title,
+                "extraction_method": method,
+                "source_title": title,
+                "entailment": result.to_dict(),
+                "proposition": prop.to_dict(),
             },
         )
-        return evidence
-
-    @staticmethod
-    def _infer_stance(subclaim_text: str, source_text: str) -> EvidenceStance:
-        subclaim_lower = subclaim_text.lower()
-        source_lower = source_text.lower()
-        if any(token in source_lower for token in ["denied", "rejected", "contradicted", "not supported", "disputed"]) and any(
-            token in subclaim_lower for token in ["raised", "approved", "hired", "caused", "increased"]
-        ):
-            return EvidenceStance.CONTRADICTS
-        if any(token in source_lower for token in ["according to", "said", "reported", "described", "confirmed"]) or "support" in source_lower:
-            return EvidenceStance.SUPPORTS
-        if any(token in source_lower for token in ["background", "context", "timeline", "at the same time", "meanwhile"]):
-            return EvidenceStance.CONTEXT
-        return EvidenceStance.UNKNOWN

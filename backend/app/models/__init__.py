@@ -11,6 +11,7 @@ from app.models.report import Report
 from app.models.search_run import SearchChannel, SearchRun
 from app.models.source_relationship import SourceRelationship, SourceRelationshipType
 from app.models.subclaim import Subclaim, SubclaimType
+from app.models.subclaim_conclusion import SubclaimConclusion
 from app.models.verification import VerificationResult, VerificationVerdict
 
 __all__ = [
@@ -35,6 +36,7 @@ __all__ = [
     "SourceRelationship",
     "SourceRelationshipType",
     "Subclaim",
+    "SubclaimConclusion",
     "SubclaimType",
     "VerificationResult",
     "VerificationVerdict",

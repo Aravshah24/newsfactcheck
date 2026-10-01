@@ -39,4 +39,5 @@ class Claim(Base):
     completeness_results: Mapped[list["CompletenessResult"]] = relationship(back_populates="claim", cascade="all, delete-orphan")
     media_analyses: Mapped[list["MediaAnalysis"]] = relationship(back_populates="claim", cascade="all, delete-orphan")
     reports: Mapped[list["Report"]] = relationship(back_populates="claim", cascade="all, delete-orphan")
+    subclaim_conclusions: Mapped[list["SubclaimConclusion"]] = relationship(back_populates="claim", cascade="all, delete-orphan")
     audit_events: Mapped[list["AuditEvent"]] = relationship(back_populates="claim", cascade="all, delete-orphan")

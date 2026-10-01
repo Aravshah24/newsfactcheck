@@ -1,1 +1,3 @@
-from app.graph.workflow import build_graph
+from app.graph.investigation import InvestigationGraph, InvestigationState
+
+__all__ = ["InvestigationGraph", "InvestigationState"]

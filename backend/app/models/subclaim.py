@@ -36,3 +36,4 @@ class Subclaim(Base):
     evidence_items: Mapped[list["EvidenceItem"]] = relationship(back_populates="subclaim", cascade="all, delete-orphan")
     search_runs: Mapped[list["SearchRun"]] = relationship(back_populates="subclaim", cascade="all, delete-orphan")
     verification_results: Mapped[list["VerificationResult"]] = relationship(back_populates="subclaim", cascade="all, delete-orphan")
+    conclusions: Mapped[list["SubclaimConclusion"]] = relationship(back_populates="subclaim", cascade="all, delete-orphan")

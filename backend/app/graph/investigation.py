@@ -31,6 +31,7 @@ from app.models import (
     SubclaimConclusion,
     VerificationResult,
 )
+from app.models.source_relationship import SourceRelationship, SourceRelationshipType
 from app.retrievers.gdelt import GDELTRetriever
 from app.retrievers.primary_source import PrimarySourceRetriever
 from app.retrievers.web_search import WebSearchRetriever
@@ -40,6 +41,8 @@ from app.services.entailment import EntailmentEngine
 from app.services.evidence_stance import normalise_stance
 from app.services.independence import IndependenceAnalyzer
 from app.services.llm import LLMClient, llm_diagnostics
+from app.services.provenance import classify as classify_provenance
+from app.services.evidence_role import classify_role
 
 logger = logging.getLogger(__name__)
 
@@ -257,6 +260,26 @@ class InvestigationGraph:
         engine.preload_propositions([subclaim.text for subclaim in subclaims])
         propositions = [engine.proposition_for(subclaim.text) for subclaim in subclaims]
 
+        # Provenance and derivation decide what role a document may play. The
+        # derived set is collected in one query so republications are weighted
+        # as republications rather than as fresh corroboration.
+        document_ids = [document.id for document in documents]
+        derived_ids = (
+            {
+                row[0]
+                for row in session.query(SourceRelationship.source_document_id)
+                .filter(
+                    SourceRelationship.source_document_id.in_(document_ids),
+                    SourceRelationship.relationship_type.in_(
+                        [SourceRelationshipType.SYNDICATED_FROM, SourceRelationshipType.COPIED_FROM]
+                    ),
+                )
+                .all()
+            }
+            if document_ids
+            else set()
+        )
+
         # Documents are assessed in groups so the whole investigation costs a
         # small number of provider requests rather than one per document.
         group_size = max(1, int(settings.EVIDENCE_DOCUMENT_BATCH_SIZE))
@@ -274,7 +297,22 @@ class InvestigationGraph:
 
             for document_index, document in enumerate(group):
                 raw_text = payload[document_index][1]
+                # Documents normalised before this change, or by a retriever that
+                # bypassed the normaliser, are classified on demand so the role is
+                # never silently unknown.
+                provenance_class = document.provenance_class or classify_provenance(
+                    url=document.url,
+                    source_type=str(getattr(document.source_type, "value", document.source_type)),
+                    publisher=getattr(getattr(document, "publisher", None), "name", None),
+                    title=document.title,
+                ).provenance_class.value
                 for subclaim, proposition, assessment in zip(subclaims, propositions, assessments[document_index]):
+                    stance = normalise_stance(getattr(assessment, "stance", "unknown"))
+                    assignment = classify_role(
+                        stance=stance,
+                        provenance=provenance_class,
+                        is_derived=document.id in derived_ids,
+                    )
                     try:
                         with session.begin_nested():
                             evidence = extractor.extract(
@@ -283,6 +321,7 @@ class InvestigationGraph:
                                 raw_text,
                                 proposition=proposition,
                                 assessment=assessment,
+                                role=assignment,
                             )
                     except Exception as exc:  # noqa: BLE001
                         # The savepoint discards only this failed item; a full
@@ -403,6 +442,8 @@ class InvestigationGraph:
                 confidence=result["confidence"],
                 rationale=result["rationale"],
                 independent_source_groups=result.get("independent_supporting_groups", 0),
+                role_weighted_support=result.get("role_weighted_support"),
+                role_weighted_contradiction=result.get("role_weighted_contradiction"),
                 supporting_evidence_ids=[getattr(item, "id", None) for item in supporting],
                 applied_rules=result.get("applied_rules", []),
                 method=result.get("method", "unknown"),

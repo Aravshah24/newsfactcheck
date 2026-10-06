@@ -4,15 +4,14 @@ import logging
 from typing import Any
 
 from pydantic import BaseModel, Field
-
 from app.models import EvidenceStance, VerificationVerdict
+from app.services.evidence_role import EvidenceRole, is_official, weight_for
 from app.services.evidence_stance import normalise_stance
 from app.services.llm import LLMClient, LLMUnavailableError
 
 logger = logging.getLogger(__name__)
 
-# Maximum confidence a verdict may carry for a given independent-group count.
-# Article volume alone must never be able to produce high confidence.
+
 def _independence_ceiling(independent_groups: int) -> float:
     if independent_groups <= 0:
         return 0.35
@@ -21,6 +20,32 @@ def _independence_ceiling(independent_groups: int) -> float:
     if independent_groups == 2:
         return 0.78
     return 0.90
+
+
+def _role_weighted_ceiling(weighted_support: float) -> float:
+    """Confidence permitted by the probative weight actually present.
+
+    ``weighted_support`` sums one role weight per independent group, so it rises
+    with genuinely distinct sources of authority and never with article count.
+    A republication adds nothing, which is the whole point: the arithmetic is
+    over what the evidence *is*, not how much of it there is.
+    """
+    if weighted_support <= 0:
+        return 0.35
+    if weighted_support < 0.5:
+        return 0.55
+    if weighted_support < 1.0:
+        return 0.70
+    if weighted_support < 1.5:
+        # A single authoritative record is the strongest single witness
+        # available, and it is not made weaker by being alone.
+        return 0.88
+    if weighted_support < 2.0:
+        return 0.90
+    if weighted_support < 2.7:
+        return 0.92
+    return 0.95
+
 
 
 _VERDICT_INSTRUCTION = """You are adjudicating one subclaim against assessed evidence.
@@ -34,7 +59,10 @@ Rules:
 1. Judge only from the supplied evidence. Never use outside knowledge.
 2. A subclaim is "supported" only when the supporting evidence entails the complete
    proposition and no contradicting evidence was found.
-3. Weigh evidence by independent source group, not by how many articles were retrieved.
+3. Weigh evidence by independent source group and by the authority of the
+   source: an official record or court document outranks a news report, which
+   outranks opinion. Never treat republications as separate sources, and never
+   treat an article that merely mentions the topic as evidence.
 4. If there is no probative evidence at all, the answer is "insufficient_evidence".
 5. If the evidence conflicts, the answer is "disputed".
 6. If the claim is partly supported but an important qualifier is missing, the answer is
@@ -88,6 +116,14 @@ class VerificationAgent:
         independent_groups = self._independent_group_count(independence_summary, supporting, items)
         independent_supporting = self._independent_supporting_count(independence_summary, supporting, items)
 
+        # Weight each group by its strongest role, so repetition inside a group
+        # and republication across groups cannot inflate support.
+        group_for_evidence = (independence_summary or {}).get("group_for_evidence") or {}
+        weighted_support = self._weighted_support(supporting, group_for_evidence)
+        weighted_contradiction = self._weighted_support(contradicting, group_for_evidence)
+        zero_weight_support_only = bool(supporting) and weighted_support <= 0
+        conflicting_official = self._has_conflicting_official(supporting, contradicting)
+
         proposal, method = self._propose(subclaim, items, stances, completeness, primary_status, independence_summary)
 
         verdict = proposal["verdict"]
@@ -134,8 +170,38 @@ class VerificationAgent:
                 + " The retrieved documents were topically related but did not address the proposition."
             ).strip()
 
-        # Rule 4: single-group support cannot be reported as fully supported.
-        if verdict == VerificationVerdict.SUPPORTED.value and independent_supporting <= 1 and independent_groups <= 1:
+        # Rule 1a: support carried only by opinion, tertiary or republication
+        # sources is not support at any volume.
+        if zero_weight_support_only and verdict in {
+            VerificationVerdict.SUPPORTED.value,
+            VerificationVerdict.PARTIALLY_SUPPORTED.value,
+        }:
+            verdict = (
+                VerificationVerdict.INSUFFICIENT_EVIDENCE.value
+                if not contradicting
+                else VerificationVerdict.DISPUTED.value
+            )
+            applied_rules.append("sole_secondary_support")
+            rationale = (
+                rationale
+                + " Every supporting document was an opinion, tertiary, or republished source, none of which can carry a claim on its own."
+            ).strip()
+
+        # Rule 1b: an official record and a contradicting official record is an
+        # unresolved conflict between the records themselves.
+        if conflicting_official and verdict in {
+            VerificationVerdict.SUPPORTED.value,
+            VerificationVerdict.PARTIALLY_SUPPORTED.value,
+        }:
+            verdict = VerificationVerdict.DISPUTED.value
+            applied_rules.append("conflicting_primary_records")
+            rationale = (
+                rationale
+                + " Authoritative records conflict with one another on this point, so the claim is reported as disputed."
+            ).strip()
+
+        # Rule 4: a single independent group cannot be reported as fully supported.
+        if verdict == VerificationVerdict.SUPPORTED.value and weighted_support < 1.5:
             verdict = VerificationVerdict.PARTIALLY_SUPPORTED.value
             applied_rules.append("single_independent_source")
             rationale = (
@@ -152,11 +218,29 @@ class VerificationAgent:
                     rationale + " The claim also omits context needed to interpret it correctly."
                 ).strip()
 
-        # Rule 6: confidence is capped by independence, and by raw counts.
-        ceiling = _independence_ceiling(independent_supporting if supporting else independent_groups)
+        # Rule 6: confidence is capped by the probative weight present, and by
+        # the independent group count. Role weighting dominates: an official
+        # record plus an independent group outranks three articles from one wire.
+        # Whichever cap binds is the one recorded, so the reason for a ceiling is
+        # never hidden.
+        role_ceiling = _role_weighted_ceiling(weighted_support if supporting else weighted_contradiction)
+        independence_cap = _independence_ceiling(independent_supporting if supporting else independent_groups)
+        # An official record is the ground truth and does not need a second
+        # independent witness, so the independence cap does not apply to it.
+        # For reported evidence the cap does apply, because each outlet is a
+        # restatement that has to be corroborated.
+        official_support = any(is_official(getattr(item, "role", None)) for item in (supporting if supporting else contradicting))
+        if official_support:
+            ceiling = role_ceiling
+        else:
+            ceiling = min(role_ceiling, independence_cap)
         if confidence > ceiling:
             confidence = ceiling
-            applied_rules.append("confidence_capped_by_independence")
+            applied_rules.append(
+                "confidence_capped_by_role_weight"
+                if role_ceiling <= independence_cap or official_support
+                else "confidence_capped_by_independence"
+            )
         if verdict in {
             VerificationVerdict.INSUFFICIENT_EVIDENCE.value,
             VerificationVerdict.UNVERIFIABLE.value,
@@ -180,12 +264,39 @@ class VerificationAgent:
             "context_evidence_count": len(context),
             "independent_supporting_groups": independent_supporting,
             "independent_groups": independent_groups,
+            "role_weighted_support": weighted_support,
+            "role_weighted_contradiction": weighted_contradiction,
             "primary_evidence_status": primary_status,
             "method": method,
             "applied_rules": applied_rules,
         }
 
     # ------------------------------------------------------------------
+    @staticmethod
+    def _weighted_support(items: list, group_for_evidence: dict) -> float:
+        """Total role weight, counting the strongest role once per group."""
+        best_per_group: dict = {}
+        for item in items:
+            weight = weight_for(getattr(item, "role", None))
+            if weight <= 0:
+                continue
+            key = getattr(item, "id", None) or id(item)
+            group = group_for_evidence.get(key, group_for_evidence.get(str(key)))
+            group_key = group if group is not None else f"ungrouped:{key}"
+            if group_key not in best_per_group or weight > best_per_group[group_key]:
+                best_per_group[group_key] = weight
+        return round(sum(best_per_group.values()), 3)
+
+    @staticmethod
+    def _has_conflicting_official(supporting: list, contradicting: list) -> bool:
+        """True when authoritative records exist on both sides of the claim."""
+        confirms = any(is_official(getattr(item, "role", None)) for item in supporting)
+        official_denial = any(
+            getattr(item, "role", None) in {EvidenceRole.CONTRADICTORY_OFFICIAL.value}
+            for item in contradicting
+        )
+        return bool(confirms and official_denial)
+
     @staticmethod
     def _independent_group_count(independence_summary: dict | None, supporting: list, items: list) -> int:
         if not independence_summary:

@@ -37,8 +37,10 @@ from app.retrievers.primary_source import PrimarySourceRetriever
 from app.retrievers.web_search import WebSearchRetriever
 from app.services.claim_analysis import ClaimAnalyzer
 from app.services.entailment import EntailmentEngine, EntailmentResult
+from app.services.evidence_role import EvidenceRole
 from app.services.llm import LLMUnavailableError
 from app.services.proposition import Proposition, PropositionSchema
+from app.services.provenance import ProvenanceClass
 
 
 @pytest.fixture
@@ -398,6 +400,8 @@ def test_evidence_exposes_document_provenance(session: Session, client: TestClie
         canonical_url="https://wire.example/story",
         title="The original headline",
         source_type=DocumentSourceType.NEWS,
+        provenance_class=ProvenanceClass.NEWS_REPORTING.value,
+        provenance_rule="host_known_news",
     )
     session.add(document)
     session.flush()
@@ -411,6 +415,9 @@ def test_evidence_exposes_document_provenance(session: Session, client: TestClie
         url=document.url,
         retrieval_channel="gdelt",
         raw_excerpt="An excerpt from the article body.",
+        role=EvidenceRole.INDEPENDENT_CORROBORATION.value,
+        role_reason="Independent reporting consistent with the claim.",
+        role_weight=0.6,
     )
     session.add(item)
     session.commit()
@@ -426,6 +433,12 @@ def test_evidence_exposes_document_provenance(session: Session, client: TestClie
     assert payload["excerpt"] == "An excerpt from the article body."
     assert payload["source_type"] == "news"
     assert payload["assessment_status"] == "unassessed"
+    # Provenance and role are exposed so a reader can see why a source was
+    # allowed to count, not only that it did.
+    assert payload["provenance_class"] == "news_reporting"
+    assert payload["role"] == "independent_corroboration"
+    assert payload["role_weight"] == 0.6
+    assert "Independent reporting" in payload["role_reason"]
 
 
 def test_conclusive_verdicts_mark_the_claim_verified() -> None:

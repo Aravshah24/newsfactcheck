@@ -5,6 +5,7 @@ import logging
 from app.config import settings
 from app.models import EvidenceAssessmentStatus, EvidenceCategory, EvidenceItem, EvidenceStance
 from app.services.entailment import EntailmentEngine, EntailmentResult
+from app.services.evidence_role import RoleAssignment, classify_role, weight_for
 from app.services.proposition import Proposition
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,7 @@ class EvidenceExtractor:
         extraction_method: str | None = None,
         proposition: Proposition | None = None,
         assessment: EntailmentResult | None = None,
+        role: RoleAssignment | None = None,
     ) -> EvidenceItem:
         text = (raw_text or getattr(document, "text_content", None) or "").strip()
         if not text:
@@ -56,6 +58,10 @@ class EvidenceExtractor:
         if len(excerpt) > limit:
             excerpt = excerpt[:limit]
 
+        # Role defaults to the stance alone when the caller supplied no
+        # provenance context, so a weight is always recorded.
+        resolved_role = role or classify_role(stance=stance.value)
+
         return EvidenceItem(
             claim_id=subclaim.claim_id,
             subclaim_id=subclaim.id,
@@ -68,6 +74,9 @@ class EvidenceExtractor:
             retrieval_channel="retrieval",
             url=getattr(document, "url", None),
             confidence_score=round(float(result.confidence), 3),
+            role=resolved_role.role.value,
+            role_reason=resolved_role.reason[:255],
+            role_weight=weight_for(resolved_role.role),
             extra_metadata={
                 "evidence_text": text,
                 "extraction_method": method,

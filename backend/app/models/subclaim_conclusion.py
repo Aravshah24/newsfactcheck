@@ -30,6 +30,10 @@ class SubclaimConclusion(Base):
     supporting_evidence_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)
     applied_rules: Mapped[list | None] = mapped_column(JSON, nullable=True)
     method: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # The arithmetic behind the confidence, so a reader can see the ceiling was
+    # applied for the recorded reason rather than taken on trust.
+    role_weighted_support: Mapped[float | None] = mapped_column(Float, nullable=True)
+    role_weighted_contradiction: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     claim: Mapped["Claim"] = relationship(back_populates="subclaim_conclusions")

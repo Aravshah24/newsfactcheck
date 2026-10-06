@@ -50,6 +50,11 @@ class Document(Base):
         nullable=False,
     )
     extra_metadata: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True)
+    # What kind of witness this document is. Classification only, never a
+    # reliability score; see app.services.provenance.
+    provenance_class: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    provenance_rule: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    provenance_basis: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     publisher: Mapped["Publisher"] = relationship(back_populates="documents")

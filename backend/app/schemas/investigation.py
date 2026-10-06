@@ -36,6 +36,11 @@ class EvidenceView(BaseModel):
     assessment_status: str | None = None
     excerpt: str | None = None
     source_type: str | None = None
+    # What kind of witness this is, and the part it plays in the adjudication.
+    provenance_class: str | None = None
+    role: str | None = None
+    role_reason: str | None = None
+    role_weight: float | None = None
 
 
 class VerificationView(BaseModel):
@@ -49,6 +54,8 @@ class VerificationView(BaseModel):
     context_evidence_count: int = 0
     independent_supporting_groups: int = 0
     independent_groups: int = 0
+    role_weighted_support: float | None = None
+    role_weighted_contradiction: float | None = None
     primary_evidence_status: str = "NOT_SEARCHED"
     method: str = "unknown"
     applied_rules: list[str] = Field(default_factory=list)

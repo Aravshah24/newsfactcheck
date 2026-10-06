@@ -45,3 +45,5 @@ dist/
 # Logs / temporary output
 *.log
 *.tmp
+# AI coding tools
+.kilo/

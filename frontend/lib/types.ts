@@ -51,6 +51,32 @@ export type SourceType =
   | 'official'
   | 'other';
 
+/** `ProvenanceClass` values: what kind of witness a document is. */
+export type ProvenanceClass =
+  | 'official_statistic'
+  | 'court_record'
+  | 'regulatory_filing'
+  | 'peer_reviewed'
+  | 'primary_record'
+  | 'existing_fact_check'
+  | 'news_reporting'
+  | 'opinion'
+  | 'encyclopedic'
+  | 'unknown';
+
+/** `EvidenceRole` values: the part a document plays in the adjudication. */
+export type EvidenceRole =
+  | 'primary_confirmation'
+  | 'contradictory_official'
+  | 'independent_corroboration'
+  | 'contradictory_reporting'
+  | 'fact_check_verdict'
+  | 'expert_assertion'
+  | 'weak_corroboration'
+  | 'topically_related'
+  | 'derived_republication'
+  | 'unknown';
+
 /** Values the backend may return that are not enumerated above. */
 type Loose = string & Record<never, never>;
 
@@ -83,6 +109,11 @@ export interface EvidenceItem {
   assessment_status?: string | null;
   excerpt?: string | null;
   source_type?: SourceType | Loose | null;
+  /** Absent on investigations recorded before provenance existed. */
+  provenance_class?: ProvenanceClass | Loose | null;
+  role?: EvidenceRole | Loose | null;
+  role_reason?: string | null;
+  role_weight?: number | null;
 }
 
 export interface Subclaim {
@@ -102,6 +133,9 @@ export interface VerificationView {
   context_evidence_count: number;
   independent_supporting_groups: number;
   independent_groups: number;
+  /** Null on investigations recorded before role weighting was persisted. */
+  role_weighted_support?: number | null;
+  role_weighted_contradiction?: number | null;
   primary_evidence_status: string;
   method: string;
   applied_rules: string[];

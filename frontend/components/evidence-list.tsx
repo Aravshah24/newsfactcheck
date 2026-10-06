@@ -5,9 +5,12 @@ import { useMemo, useState } from 'react';
 import {
   assessmentStatusLabel,
   categoryLabel,
+  evidenceRoleLabel,
   formatConfidence,
   isProbative,
+  isZeroWeightRole,
   pluralise,
+  provenanceLabel,
   publisherDomain,
   stanceDescriptor,
   titleCase,
@@ -280,6 +283,24 @@ function EvidenceCard({
               <div className="flex gap-1.5">
                 <dt className="uppercase tracking-[0.1em]">Status</dt>
                 <dd className="text-ink-600">{assessmentStatusLabel(item.assessment_status)}</dd>
+              </div>
+            ) : null}
+            {item.provenance_class ? (
+              <div className="flex min-w-0 gap-1.5">
+                <dt className="shrink-0 uppercase tracking-[0.1em]">Source type</dt>
+                <dd className="min-w-0 break-words text-ink-600">{provenanceLabel(item.provenance_class)}</dd>
+              </div>
+            ) : null}
+            {item.role ? (
+              <div className="flex min-w-0 gap-1.5">
+                <dt className="shrink-0 uppercase tracking-[0.1em]">Role</dt>
+                <dd
+                  className={`min-w-0 break-words ${isZeroWeightRole(item.role) ? 'text-ink-400' : 'text-ink-600'}`}
+                  title={item.role_reason ?? undefined}
+                >
+                  {evidenceRoleLabel(item.role)}
+                  {isZeroWeightRole(item.role) ? ' (no weight)' : ''}
+                </dd>
               </div>
             ) : null}
             {typeof independenceGroup === 'number' ? (

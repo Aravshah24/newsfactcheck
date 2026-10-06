@@ -350,7 +350,7 @@ def test_extraction_falls_back_to_the_title_when_a_document_has_no_body() -> Non
 # ----------------------------------------------------------------------
 # Verification guard rails
 # ----------------------------------------------------------------------
-def _evidence(stance: str, evidence_id: int, group: int | None = None) -> Mock:
+def _evidence(stance: str, evidence_id: int, group: int | None = None, role: str | None = None) -> Mock:
     item = Mock()
     item.stance = stance
     item.id = evidence_id
@@ -358,6 +358,10 @@ def _evidence(stance: str, evidence_id: int, group: int | None = None) -> Mock:
     item.summary = f"{stance} item {evidence_id}"
     item.url = f"https://example.com/{evidence_id}"
     item._independence_group = group
+    # Role defaults to the role a reporting outlet would carry, so a test that
+    # only cares about independence is not silently exercising zero-weight
+    # evidence.
+    item.role = role or ("independent_corroboration" if stance == "supports" else "contradictory_reporting")
     return item
 
 

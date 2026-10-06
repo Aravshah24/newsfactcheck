@@ -6,6 +6,7 @@ from urllib.parse import urlsplit
 from sqlalchemy.orm import Session
 
 from app.models import Document, Publisher, PublisherType
+from app.services.provenance import classify as classify_provenance
 
 
 class DocumentNormalizer:
@@ -78,13 +79,26 @@ class DocumentNormalizer:
         if existing is not None:
             return existing
 
+        source_type = result.get("source_type") or "news"
+        # Classification happens once, at creation, so every downstream stage
+        # reads the same provenance rather than re-deriving it.
+        provenance = classify_provenance(
+            url=url or result.get("url"),
+            source_type=source_type,
+            publisher=publisher_name,
+            title=title,
+        )
+
         document = Document(
             publisher_id=publisher.id,
             url=url or "https://unknown.example",
             canonical_url=canonical_url,
             normalized_url=url,
             title=title,
-            source_type=result.get("source_type") or "news",
+            source_type=source_type,
+            provenance_class=provenance.provenance_class.value,
+            provenance_rule=provenance.rule,
+            provenance_basis=provenance.basis[:255] if provenance.basis else None,
             content_hash=cls.content_hash(result.get("content") or title),
             text_content=result.get("content") or title,
             extra_metadata={**result.get("metadata", {}), "claim_id": claim_id, "subclaim_id": subclaim_id},

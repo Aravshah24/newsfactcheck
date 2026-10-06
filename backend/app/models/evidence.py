@@ -72,6 +72,11 @@ class EvidenceItem(Base):
     retrieval_channel: Mapped[str | None] = mapped_column(String(128), nullable=True)
     url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     confidence_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # The role this item plays in the adjudication, orthogonal to stance.
+    # See app.services.evidence_role.
+    role: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    role_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    role_weight: Mapped[float | None] = mapped_column(Float, nullable=True)
     extra_metadata: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 

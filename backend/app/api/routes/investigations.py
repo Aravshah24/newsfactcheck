@@ -87,6 +87,13 @@ def get_investigation(claim_id: int, db: Session = Depends(get_db)) -> Investiga
             "source_type": (
                 str(getattr(document.source_type, "value", document.source_type)) if document else None
             ),
+            # Read-only provenance: what kind of witness this is, and the part it
+            # was allowed to play. Absent on records written before provenance
+            # existed, which is why every field is optional.
+            "provenance_class": document.provenance_class if document else None,
+            "role": item.role,
+            "role_reason": item.role_reason,
+            "role_weight": item.role_weight,
         }
         for item in claim.evidence_items
         for document in [item.document]
@@ -117,6 +124,8 @@ def get_investigation(claim_id: int, db: Session = Depends(get_db)) -> Investiga
                 ),
                 "independent_supporting_groups": conclusion.independent_source_groups,
                 "independent_groups": conclusion.independent_source_groups,
+                "role_weighted_support": conclusion.role_weighted_support,
+                "role_weighted_contradiction": conclusion.role_weighted_contradiction,
                 "primary_evidence_status": primary_status,
                 "method": conclusion.method or "unknown",
                 "applied_rules": conclusion.applied_rules or [],

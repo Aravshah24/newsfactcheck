@@ -196,6 +196,61 @@ const ASSESSMENT_STATUS: Record<string, string> = {
   rejected: 'Rejected',
 };
 
+const PROVENANCE: Record<string, string> = {
+  official_statistic: 'Official statistics',
+  court_record: 'Court record',
+  regulatory_filing: 'Regulatory filing',
+  peer_reviewed: 'Peer-reviewed',
+  primary_record: 'Primary record',
+  existing_fact_check: 'Existing fact-check',
+  news_reporting: 'News reporting',
+  opinion: 'Opinion',
+  encyclopedic: 'Encyclopedic',
+  unknown: 'Unclassified source',
+};
+
+const EVIDENCE_ROLES: Record<string, string> = {
+  primary_confirmation: 'Official record confirms',
+  contradictory_official: 'Official record contradicts',
+  independent_corroboration: 'Independent corroboration',
+  contradictory_reporting: 'Reporting contradicts',
+  fact_check_verdict: 'Prior fact-check',
+  expert_assertion: 'Expert analysis',
+  weak_corroboration: 'Weak corroboration',
+  topically_related: 'Topically related',
+  derived_republication: 'Republication',
+  unknown: 'No assigned role',
+};
+
+/**
+ * Roles that cannot move a verdict on their own. Surfacing this in the UI makes
+ * the weighting auditable: a reader can see why a list of articles that all
+ * agree still yields only partial support.
+ */
+const ZERO_WEIGHT_ROLES = new Set([
+  'weak_corroboration',
+  'topically_related',
+  'derived_republication',
+  'unknown',
+]);
+
+export function provenanceLabel(value: string | null | undefined): string {
+  const key = (value ?? '').trim();
+  if (!key) return '';
+  return PROVENANCE[key] ?? titleCase(key);
+}
+
+export function evidenceRoleLabel(value: string | null | undefined): string {
+  const key = (value ?? '').trim();
+  if (!key) return '';
+  return EVIDENCE_ROLES[key] ?? titleCase(key);
+}
+
+/** True when a role contributes no weight, whatever the quantity of such items. */
+export function isZeroWeightRole(value: string | null | undefined): boolean {
+  return ZERO_WEIGHT_ROLES.has((value ?? '').trim());
+}
+
 function lookup(table: Record<string, Descriptor>, value: string | null | undefined): Descriptor {
   const key = (value ?? '').trim();
   return table[key] ?? descriptor(titleCase(key) || 'Unknown', '?', 'neutral', 'text-stone-600', 'No description available.', NEUTRAL_CHIP);

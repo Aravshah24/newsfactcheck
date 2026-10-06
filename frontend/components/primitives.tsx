@@ -109,13 +109,13 @@ export function ExternalLink({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className={`inline-flex items-center gap-1.5 text-ink-600 underline decoration-paper-300 underline-offset-4 transition hover:text-ink-900 hover:decoration-ink-400 ${className}`}
+      className={`inline max-w-full break-words text-ink-600 underline decoration-paper-300 underline-offset-4 transition hover:text-ink-900 hover:decoration-ink-400 [overflow-wrap:anywhere] ${className}`}
     >
       {children}
       <svg
         aria-hidden="true"
         viewBox="0 0 12 12"
-        className="h-3 w-3 shrink-0"
+        className="ml-1 inline-block h-3 w-3 shrink-0 align-[-1px]"
         fill="none"
         stroke="currentColor"
         strokeWidth="1.4"

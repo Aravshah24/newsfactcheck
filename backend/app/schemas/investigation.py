@@ -18,6 +18,21 @@ class InvestigationCreateResponse(BaseModel):
     llm_status: dict = Field(default_factory=dict)
 
 
+class InvestigationListItem(BaseModel):
+    claim_id: int
+    claim_text: str
+    status: str
+    overall_verdict: str | None = None
+    overall_confidence: float | None = None
+    evidence_count: int = 0
+    created_at: datetime | None = None
+
+
+class InvestigationListResponse(BaseModel):
+    items: list[InvestigationListItem] = Field(default_factory=list)
+    total: int = 0
+
+
 class EvidenceView(BaseModel):
     id: int | None = None
     subclaim_id: int | None = None

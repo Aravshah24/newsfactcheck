@@ -32,6 +32,7 @@ from app.models import (
     Subclaim,
     SubclaimType,
 )
+from app.retrievers import gdelt as gdelt_module
 from app.retrievers.gdelt import GDELTRetriever
 from app.retrievers.primary_source import PrimarySourceRetriever
 from app.retrievers.web_search import WebSearchRetriever
@@ -55,6 +56,13 @@ def session() -> Session:
     Base.metadata.create_all(bind=engine)
     with Session(bind=engine) as db:
         yield db
+
+
+@pytest.fixture(autouse=True)
+def _reset_gdelt_breaker():
+    gdelt_module.reset_rate_limit_state()
+    yield
+    gdelt_module.reset_rate_limit_state()
 
 
 class ScriptedEngine(EntailmentEngine):
@@ -108,6 +116,29 @@ def _offline_llm():
     ):
         stack.enter_context(patch(target, side_effect=LLMUnavailableError("offline in tests")))
     stack.enter_context(patch("app.agents.writer.LLMClient.is_configured", return_value=False))
+    # The dedicated primary-source stage builds a real retriever and would hit
+    # the live search provider whenever a Tavily key is present; the suite must
+    # never touch the network, so the channel is switched off here.
+    stack.enter_context(
+        patch("app.graph.investigation.PrimarySourceRetriever.is_available", return_value=False)
+    )
+    # The pipeline probes the provider once at the start. Without this the probe
+    # would reach the live provider; the suite must never touch the network.
+    stack.enter_context(
+        patch(
+            "app.graph.investigation.llm_diagnostics",
+            return_value={
+                "provider": "gemini",
+                "model": "offline-test",
+                "fallback_models": [],
+                "key_configured": False,
+                "available": False,
+                "error_code": "LLM_NOT_CONFIGURED",
+                "error": None,
+                "remediation": None,
+            },
+        )
+    )
     return stack
 
 
@@ -168,15 +199,20 @@ def test_gdelt_result_normalization() -> None:
 
 
 def test_gdelt_zero_results() -> None:
-    with patch("app.retrievers.gdelt.httpx.get") as mock_get:
-        mock_get.return_value.raise_for_status.return_value = None
+    with patch("app.retrievers.gdelt.settings.GDELT_MIN_INTERVAL_SECONDS", 0.0), patch(
+        "app.retrievers.gdelt.httpx.get"
+    ) as mock_get:
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.text = ""
         mock_get.return_value.json.return_value = {"articles": []}
         results = GDELTRetriever().search(subclaim=None, query="No results query", max_results=5)
     assert results == []
 
 
 def test_gdelt_api_failure_is_contained() -> None:
-    with patch("app.retrievers.gdelt.httpx.get", side_effect=RuntimeError("failure")):
+    with patch("app.retrievers.gdelt.settings.GDELT_MIN_INTERVAL_SECONDS", 0.0), patch(
+        "app.retrievers.gdelt.httpx.get", side_effect=RuntimeError("failure")
+    ):
         results = GDELTRetriever().search(subclaim=None, query="Failure query", max_results=5)
     assert results == []
 
@@ -190,12 +226,110 @@ def test_web_search_is_unavailable_without_configuration() -> None:
         assert retriever.search(subclaim=None, query="anything") == []
 
 
-def test_primary_source_reports_not_configured_rather_than_failing() -> None:
-    with patch("app.retrievers.primary_source.settings.PRIMARY_SOURCE_PROVIDER", None):
+def test_primary_source_reports_not_configured_without_any_api_key() -> None:
+    with patch("app.retrievers.primary_source.settings.PRIMARY_SOURCE_API_KEY", None), patch(
+        "app.retrievers.primary_source.settings.WEB_SEARCH_API_KEY", None
+    ):
         retriever = PrimarySourceRetriever()
         assert retriever.is_available() is False
         assert retriever.search(subclaim=None, query="agency report") == []
     assert retriever.last_status == "NOT_CONFIGURED"
+
+
+def test_primary_source_reuses_tavily_credentials_and_targets_official_domains() -> None:
+    with patch("app.retrievers.primary_source.settings.WEB_SEARCH_API_KEY", "test-key"), patch(
+        "app.retrievers.primary_source.settings.PRIMARY_SOURCE_API_KEY", None
+    ), patch("app.retrievers.primary_source.httpx.post") as mock_post:
+        mock_post.return_value.raise_for_status.return_value = None
+        mock_post.return_value.json.return_value = {"results": []}
+        retriever = PrimarySourceRetriever()
+        assert retriever.is_available() is True
+        retriever.search(subclaim=None, query="census totals")
+
+    request = mock_post.call_args
+    assert request.kwargs["headers"]["Authorization"] == "Bearer test-key"
+    body = request.kwargs["json"]
+    assert body["search_depth"] == "advanced"
+    assert body["topic"] == "general"
+    assert "census.gov" in body["include_domains"]
+    assert "supremecourt.gov" in body["include_domains"]
+    assert retriever.last_status == "NOT_FOUND"
+
+
+def test_primary_source_keeps_only_authoritative_results() -> None:
+    results = [
+        {"url": "https://www.census.gov/newsroom/press-releases.html", "title": "Census press release"},
+        {"url": "https://example.com/blog", "title": "A blog post", "description": "Diary."},
+    ]
+    with patch("app.retrievers.primary_source.settings.WEB_SEARCH_API_KEY", "test-key"), patch(
+        "app.retrievers.primary_source.httpx.post"
+    ) as mock_post, patch("app.retrievers.primary_source.fetch_page_text", return_value=None):
+        mock_post.return_value.raise_for_status.return_value = None
+        mock_post.return_value.json.return_value = {"results": results}
+        retriever = PrimarySourceRetriever()
+        found = retriever.search(subclaim=None, query="population")
+
+    assert len(found) == 1
+    assert "census.gov" in found[0]["url"]
+    assert found[0]["source_type"] == DocumentSourceType.PRIMARY.value
+    assert retriever.last_status == "FOUND"
+
+
+def test_primary_source_reports_search_failed_on_network_error() -> None:
+    with patch("app.retrievers.primary_source.settings.WEB_SEARCH_API_KEY", "test-key"), patch(
+        "app.retrievers.primary_source.httpx.post", side_effect=RuntimeError("search provider down")
+    ):
+        retriever = PrimarySourceRetriever()
+        assert retriever.search(subclaim=None, query="anything") == []
+    assert retriever.last_status == "SEARCH_FAILED"
+
+
+def test_primary_source_fetches_full_text_for_kept_records() -> None:
+    with patch("app.retrievers.primary_source.settings.WEB_SEARCH_API_KEY", "test-key"), patch(
+        "app.retrievers.primary_source.httpx.post"
+    ) as mock_post, patch(
+        "app.retrievers.primary_source.fetch_page_text",
+        return_value="Full body text of the official record.",
+    ) as mock_fetch:
+        mock_post.return_value.raise_for_status.return_value = None
+        mock_post.return_value.json.return_value = {
+            "results": [
+                {"url": "https://data.gov/records/1", "title": "Official data", "description": "A snippet."}
+            ]
+        }
+        found = PrimarySourceRetriever().search(subclaim=None, query="population stats")
+
+    assert found[0]["content"] == "Full body text of the official record."
+    mock_fetch.assert_called_once_with("https://data.gov/records/1")
+    assert found[0]["metadata"]["full_text_fetched"] is True
+
+
+def test_primary_search_node_runs_the_channel_and_merges_documents(session: Session) -> None:
+    claim = Claim(claim_text="A claim.")
+    subclaim = Subclaim(claim=claim, text="A claim.", subclaim_type=SubclaimType.FACTUAL.value)
+    session.add_all([claim, subclaim])
+    session.flush()
+
+    with patch("app.retrievers.primary_source.settings.WEB_SEARCH_API_KEY", "test-key"), patch(
+        "app.retrievers.primary_source.httpx.post"
+    ) as mock_post, patch("app.retrievers.primary_source.fetch_page_text", return_value=None):
+        mock_post.return_value.raise_for_status.return_value = None
+        mock_post.return_value.json.return_value = {
+            "results": [{"url": "https://data.gov/r/1", "title": "Official record", "description": "Body."}]
+        }
+        graph = InvestigationGraph(session_factory=lambda: session)
+        state: dict = {
+            "session": session,
+            "subclaims": [subclaim],
+            "documents": [],
+            "errors": [],
+            "retrieval_stats": {},
+        }
+        result = graph._primary_search(state)
+
+    assert result["primary_status"] == "FOUND"
+    assert len(result["documents"]) == 1
+    assert session.get(Document, result["documents"][0].id) is result["documents"][0]
 
 
 def test_primary_source_classifies_official_and_institutional_sources() -> None:
@@ -272,6 +406,29 @@ def test_source_discovery_deduplicates_at_ingestion(session: Session) -> None:
 
     # A republished copy is collapsed at ingestion so it can never become a second item.
     assert len(documents) == 1
+
+
+def test_source_discovery_fans_out_across_channels(session: Session) -> None:
+    claim = Claim(claim_text="A claim.")
+    subclaim = Subclaim(claim=claim, text="A claim.", subclaim_type=SubclaimType.FACTUAL.value)
+    session.add_all([claim, subclaim])
+    session.flush()
+
+    first = Mock(channel_name="gdelt")
+    first.search.return_value = [
+        {"title": "A", "url": "https://a.example/one", "publisher": "A", "content": "Body a."}
+    ]
+    second = Mock(channel_name="web_search")
+    second.search.return_value = [
+        {"title": "B", "url": "https://b.example/two", "publisher": "B", "content": "Body b."}
+    ]
+
+    with patch("app.agents.source_discovery.LLMClient.generate_structured", side_effect=LLMUnavailableError("x")):
+        documents = SourceDiscoveryAgent([first, second]).discover(session, subclaim)
+
+    assert {document.url for document in documents} == {"https://a.example/one", "https://b.example/two"}
+    assert first.search.called
+    assert second.search.called
 
 
 def test_discovery_keeps_documents_from_subclaims_that_succeeded(session: Session) -> None:
@@ -457,7 +614,7 @@ def test_llm_client_never_fabricates_structured_output() -> None:
 
     with patch("app.services.llm.settings.GEMINI_API_KEY", ""), patch(
         "app.services.llm.settings.GOOGLE_API_KEY", ""
-    ), patch("app.services.llm.settings.OPENAI_API_KEY", None):
+    ):
         client = LLMClient()
         assert client.is_configured() is False
         with pytest.raises(LLMUnavailableError):
@@ -536,6 +693,36 @@ def test_media_analysis_does_not_treat_orientation_as_evidence() -> None:
     assert media["center_coverage"] > 0
     assert media["left_coverage"] > 0
     assert "does not indicate whether the claim is true" in media["omitted_context"]
+
+
+def test_media_analysis_places_unrated_publishers_in_the_unknown_bucket() -> None:
+    with patch("app.agents.media_analysis.LLMClient.generate_structured", side_effect=LLMUnavailableError("x")):
+        media = MediaAnalysisAgent().analyze(
+            "A claim.",
+            documents=[
+                Mock(publisher=Mock(name="The Evening Ledger")),
+                Mock(publisher=Mock(name="BBC")),
+            ],
+            evidence_items=[],
+        )
+    assert media["unknown_coverage"] > 0
+    assert media["center_coverage"] > 0
+    # Left + center + right + unknown describe the whole corpus.
+    assert round(media["left_coverage"] + media["center_coverage"] + media["right_coverage"] + media["unknown_coverage"], 2) == 1.0
+
+
+def test_outlet_lean_table_is_cited_and_uses_known_labels() -> None:
+    from app.data.outlet_lean import OUTLET_LEAN
+
+    assert OUTLET_LEAN
+    for token, lean in OUTLET_LEAN.items():
+        assert lean.label in {"LEFT", "CENTER", "RIGHT"}, token
+        assert lean.source, token
+        assert lean.reference.startswith("https://"), token
+        assert lean.as_of, token
+    assert OUTLET_LEAN["bbc"].label == "CENTER"
+    assert OUTLET_LEAN["msnbc"].label == "LEFT"
+    assert OUTLET_LEAN["fox news"].label == "RIGHT"
 
 
 # ----------------------------------------------------------------------
@@ -641,13 +828,17 @@ def test_pipeline_records_a_verified_conclusion_separate_from_raw_evidence(sessi
     assert result["claim_id"] is not None
     assert result["subclaims"]
 
-    from app.models import SubclaimConclusion, VerificationVerdict
+    from app.models import AgentRun, AuditEvent, SubclaimConclusion, VerificationVerdict
 
     conclusions = session.query(SubclaimConclusion).all()
     assert conclusions
     for conclusion in conclusions:
         assert conclusion.verdict in {member.value for member in VerificationVerdict}
         assert conclusion.independent_source_groups >= 0
+
+    # The pipeline now leaves a per-stage agent_runs trail and an audit event.
+    assert session.query(AgentRun).count() >= 1
+    assert session.query(AuditEvent).count() >= 1
 
     # A retrieved document is not automatically an evidence item.
     assert result["evidence_count"] <= len(result["documents"]) * len(result["subclaims"])
@@ -740,3 +931,41 @@ def test_investigation_api_returns_404_for_unknown_claim(client: TestClient) -> 
 
 def test_investigation_api_rejects_an_empty_claim(client: TestClient) -> None:
     assert client.post("/api/v1/investigations", json={"claim": ""}).status_code == 422
+
+
+def test_investigation_api_lists_and_deletes_stored_runs(client: TestClient, session: Session) -> None:
+    claim = Claim(claim_text="A stored claim.", status=ClaimStatus.VERIFIED.value)
+    session.add(claim)
+    session.flush()
+    session.add(
+        Report(
+            claim_id=claim.id,
+            verdict_summary="SUPPORTED",
+            overall_confidence=0.7,
+            report_text="Stored report body.",
+        )
+    )
+    session.commit()
+
+    listing = client.get("/api/v1/investigations")
+    assert listing.status_code == 200
+    payload = listing.json()
+    assert payload["total"] >= 1
+    assert any(item["claim_id"] == claim.id for item in payload["items"])
+
+    deleted = client.delete(f"/api/v1/investigations/{claim.id}")
+    assert deleted.status_code == 204
+    assert client.get(f"/api/v1/investigations/{claim.id}").status_code == 404
+
+
+def test_demo_mode_redacts_provider_identity() -> None:
+    from app.services.llm import llm_diagnostics
+
+    with patch("app.services.llm.settings.DEMO_MODE", True), patch(
+        "app.services.llm.settings.GEMINI_API_KEY", "key"
+    ), patch("app.services.llm.settings.GOOGLE_API_KEY", None):
+        info = llm_diagnostics(probe=False)
+
+    assert info["provider"] == "provider"
+    assert info["model"] is None
+    assert info["fallback_models"] == []

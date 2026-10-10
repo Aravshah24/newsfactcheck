@@ -9,6 +9,7 @@ from app.config import settings
 from app.models import SearchChannel, SearchRun, Subclaim
 from app.services.deduplication import DeduplicationService
 from app.services.document_normalizer import DocumentNormalizer
+from app.services.fanout import run_in_parallel
 from app.services.llm import LLMClient, LLMUnavailableError
 
 logger = logging.getLogger(__name__)
@@ -93,32 +94,41 @@ class SourceDiscoveryAgent:
         documents = []
         max_results = int(settings.SEARCH_MAX_RESULTS_PER_QUERY)
 
-        for query in self.generate_queries(subclaim):
-            for retriever in self.retrievers:
-                channel_name = self._safe_channel_name(retriever)
-                try:
-                    results = retriever.search(subclaim, query, max_results=max_results)
-                except Exception as exc:  # noqa: BLE001 - isolate channel failures
-                    logger.info("Channel %s failed for subclaim %s: %s", channel_name, subclaim.id, exc)
-                    self._record_search(db, subclaim, channel_name, query, 0, error=str(exc))
-                    continue
+        tasks: list[tuple[str, object]] = [
+            (query, retriever)
+            for query in self.generate_queries(subclaim)
+            for retriever in self.retrievers
+        ]
+        outcomes = run_in_parallel(
+            [
+                (lambda query=query, retriever=retriever: retriever.search(subclaim, query, max_results=max_results))
+                for query, retriever in tasks
+            ]
+        )
 
-                self._record_search(db, subclaim, channel_name, query, len(results or []))
-                for result in results or []:
-                    payload = dict(result) if not isinstance(result, dict) else result
-                    document = DocumentNormalizer.normalize_document(
-                        db,
-                        {
-                            **payload,
-                            "publisher": payload.get("publisher") or "Unknown publisher",
-                            "domain": payload.get("metadata", {}).get("domain") or payload.get("domain"),
-                            "source_type": payload.get("source_type") or "news",
-                        },
-                        claim_id=subclaim.claim_id,
-                        subclaim_id=subclaim.id,
-                    )
-                    if document not in documents:
-                        documents.append(document)
+        for (query, retriever), (results, error) in zip(tasks, outcomes):
+            channel_name = self._safe_channel_name(retriever)
+            if error is not None:
+                logger.info("Channel %s failed for subclaim %s: %s", channel_name, subclaim.id, error)
+                self._record_search(db, subclaim, channel_name, query, 0, error=str(error))
+                continue
+
+            self._record_search(db, subclaim, channel_name, query, len(results or []))
+            for result in results or []:
+                payload = dict(result) if not isinstance(result, dict) else result
+                document = DocumentNormalizer.normalize_document(
+                    db,
+                    {
+                        **payload,
+                        "publisher": payload.get("publisher") or "Unknown publisher",
+                        "domain": payload.get("metadata", {}).get("domain") or payload.get("domain"),
+                        "source_type": payload.get("source_type") or "news",
+                    },
+                    claim_id=subclaim.claim_id,
+                    subclaim_id=subclaim.id,
+                )
+                if document not in documents:
+                    documents.append(document)
 
         return DeduplicationService.normalize_and_dedupe(db, documents)
 

@@ -1,5 +1,7 @@
 # Architecture overview
 
+**Product name:** FactTrace (repository: NewsFactCheck)
+
 ## The central distinction
 
 The system keeps three things strictly separate, and conflating them is the main
@@ -98,6 +100,16 @@ both the model path and the fallback path, and each one is recorded in
    upgrade one.
 6. `confidence_capped_by_independence` - confidence is bounded by how many
    independent groups produced the supporting evidence.
+7. `sole_secondary_support` - when all supporting evidence comes from secondary
+   reporting (no primary or authoritative sources), the verdict is capped at
+   partially supported.
+8. `conflicting_primary_records` - when authoritative or primary sources
+   directly contradict each other, the verdict is reported as disputed regardless
+   of secondary support.
+9. `confidence_capped_by_role_weight` - when support relies on evidence whose
+   role weight is below the independence ceiling, confidence is further capped
+   by that role weight (e.g., opinion or republication cannot drive high
+   confidence).
 
 ## Data model direction
 
@@ -115,6 +127,16 @@ both the model path and the fallback path, and each one is recorded in
 
 Each record retains provenance and evidence status so the system can explain why
 a conclusion was reached.
+
+## Media analysis
+
+Media analysis summarises publisher distribution and editorial framing. Publisher
+orientation labels come from a static table (`backend/app/data/outlet_lean.py`)
+sourced from AllSides, Media Bias/Fact Check, and Ad Fontes Media as of a
+recorded snapshot; outlets without a rating fall into the `unknown` bucket.
+Additionally, the media agent includes a hardcoded `ORIENTATION_MAP` fallback
+for common outlets not yet in the table. Lean is contextual framing — never
+evidence for or against a claim.
 
 ## Degradation
 

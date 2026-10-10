@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 from urllib.parse import urlparse
 
@@ -7,6 +8,9 @@ import httpx
 
 from app.config import settings
 from app.retrievers.base import Retriever
+
+logger = logging.getLogger(__name__)
+_availability_warned = False
 
 
 class WebSearchRetriever(Retriever):
@@ -27,13 +31,20 @@ class WebSearchRetriever(Retriever):
             return False
         if provider == "tavily":
             return bool(settings.WEB_SEARCH_ENDPOINT and settings.WEB_SEARCH_API_KEY)
-        if provider == "tavily":
-            return bool(settings.WEB_SEARCH_ENDPOINT and settings.WEB_SEARCH_API_KEY)
         return bool(settings.WEB_SEARCH_ENDPOINT or settings.WEB_SEARCH_API_KEY)
 
     def search(self, subclaim: Any | None, query: str, **kwargs: Any) -> list[dict[str, Any]]:
         provider = (settings.WEB_SEARCH_PROVIDER or "").lower()
         if not self.is_available() or provider in {"mock", "none"}:
+            if provider and provider not in {"mock", "none"} and not settings.WEB_SEARCH_API_KEY:
+                global _availability_warned
+                if not _availability_warned:
+                    logger.warning(
+                        "Web search provider %r is configured but WEB_SEARCH_API_KEY is not set; "
+                        "skipping this channel.",
+                        provider,
+                    )
+                    _availability_warned = True
             return []
 
         endpoint = settings.WEB_SEARCH_ENDPOINT

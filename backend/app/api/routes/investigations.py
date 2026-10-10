@@ -3,15 +3,19 @@ from __future__ import annotations
 import json
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.api.rate_limit import enforce_rate_limit
 from app.db.session import get_db
 from app.graph.investigation import InvestigationGraph
-from app.models import Claim, CompletenessResult, MediaAnalysis, Report
+from app.models import AgentRun, Claim, CompletenessResult, EvidenceItem, MediaAnalysis, Report
 from app.schemas.investigation import (
     InvestigationCreateRequest,
     InvestigationCreateResponse,
+    InvestigationListItem,
+    InvestigationListResponse,
     InvestigationStateResponse,
 )
 from app.services.llm import llm_diagnostics
@@ -21,7 +25,11 @@ router = APIRouter(prefix="/api/v1", tags=["investigations"])
 logger = logging.getLogger(__name__)
 
 
-@router.post("/investigations", response_model=InvestigationCreateResponse)
+@router.post(
+    "/investigations",
+    response_model=InvestigationCreateResponse,
+    dependencies=[Depends(enforce_rate_limit)],
+)
 def create_investigation(
     payload: InvestigationCreateRequest, db: Session = Depends(get_db)
 ) -> InvestigationCreateResponse:
@@ -47,6 +55,54 @@ def create_investigation(
     )
 
 
+@router.get("/investigations", response_model=InvestigationListResponse)
+def list_investigations(
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+) -> InvestigationListResponse:
+    """List stored investigations, newest first, so they can be reopened."""
+    total = db.query(func.count(Claim.id)).scalar() or 0
+    claims = (
+        db.query(Claim)
+        .order_by(Claim.created_at.desc(), Claim.id.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    claim_ids = [claim.id for claim in claims]
+
+    reports: dict[int, Report] = {}
+    counts: dict[int, int] = {}
+    if claim_ids:
+        # One query each instead of two per claim, so the list stays cheap.
+        for report in (
+            db.query(Report).filter(Report.claim_id.in_(claim_ids)).order_by(Report.id.asc()).all()
+        ):
+            reports[report.claim_id] = report
+        for claim_id, count in (
+            db.query(EvidenceItem.claim_id, func.count(EvidenceItem.id))
+            .filter(EvidenceItem.claim_id.in_(claim_ids))
+            .group_by(EvidenceItem.claim_id)
+            .all()
+        ):
+            counts[claim_id] = count
+
+    items = [
+        InvestigationListItem(
+            claim_id=claim.id,
+            claim_text=claim.claim_text,
+            status=claim.status,
+            overall_verdict=reports[claim.id].verdict_summary if claim.id in reports else None,
+            overall_confidence=reports[claim.id].overall_confidence if claim.id in reports else None,
+            evidence_count=counts.get(claim.id, 0),
+            created_at=claim.created_at,
+        )
+        for claim in claims
+    ]
+    return InvestigationListResponse(items=items, total=total)
+
+
 @router.get("/investigations/{claim_id}", response_model=InvestigationStateResponse)
 def get_investigation(claim_id: int, db: Session = Depends(get_db)) -> InvestigationStateResponse:
     claim = db.get(Claim, claim_id)
@@ -63,6 +119,15 @@ def get_investigation(claim_id: int, db: Session = Depends(get_db)) -> Investiga
     media = (
         db.query(MediaAnalysis).filter(MediaAnalysis.claim_id == claim.id).order_by(MediaAnalysis.id.desc()).first()
     )
+
+    # Collect errors from failed agent runs so they surface in the UI.
+    failed_runs = (
+        db.query(AgentRun)
+        .filter(AgentRun.claim_id == claim.id, AgentRun.status == "failed")
+        .order_by(AgentRun.id.asc())
+        .all()
+    )
+    errors = [run.output_reference for run in failed_runs if run.output_reference]
 
     subclaims = sorted(claim.subclaims, key=lambda item: item.priority)
     conclusions = {conclusion.subclaim_id: conclusion for conclusion in _conclusions(db, claim.id)}
@@ -132,17 +197,13 @@ def get_investigation(claim_id: int, db: Session = Depends(get_db)) -> Investiga
             }
         )
 
-    # The column is nullable, so reports written before it was populated return
-    # None here. Coerce it, otherwise every such investigation fails validation.
-    primary_status = (report.primary_evidence_status if report else None) or "NOT_SEARCHED"
-
     return InvestigationStateResponse(
         claim_id=claim.id,
         claim_text=claim.claim_text,
         status=claim.status,
         subclaims=[{"id": subclaim.id, "text": subclaim.text, "type": subclaim.subclaim_type} for subclaim in subclaims],
         evidence_count=len(evidence),
-        errors=[],
+        errors=errors,
         overall_verdict=report.verdict_summary if report else None,
         overall_confidence=report.overall_confidence if report else None,
         overall_explanation=report.overall_explanation if report else None,
@@ -157,6 +218,18 @@ def get_investigation(claim_id: int, db: Session = Depends(get_db)) -> Investiga
         llm_available=bool(report.llm_available) if report else False,
         llm_status=(report.llm_status if report and report.llm_status else llm_diagnostics()),
     )
+
+
+@router.delete("/investigations/{claim_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
+def delete_investigation(claim_id: int, db: Session = Depends(get_db)) -> None:
+    """Delete an investigation and every record that belongs to it."""
+    claim = db.get(Claim, claim_id)
+    if claim is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Investigation not found.")
+    # ORM cascades remove subclaims, evidence, reports, conclusions, clusters,
+    # agent runs and audit events. Retrieved documents are shared and stay.
+    db.delete(claim)
+    db.commit()
 
 
 def _conclusions(db: Session, claim_id: int) -> list:
@@ -177,6 +250,7 @@ def _media_payload(media: MediaAnalysis | None) -> dict | None:
         "left_coverage": media.left_coverage,
         "center_coverage": media.center_coverage,
         "right_coverage": media.right_coverage,
+        "unknown_coverage": media.unknown_coverage,
         "framing_summary": media.framing_summary,
         "omitted_context": _decode_structured(media.omitted_context),
         "methodology": media.methodology,

@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:16-alpine
@@ -10,7 +8,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-newsfactcheck}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -25,9 +23,11 @@ services:
     container_name: newsfactcheck-backend
     restart: unless-stopped
     env_file:
-      - .env
+      - ./backend/.env
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://newsfactcheck:change_me@db:5432/newsfactcheck}
+      # Always point the container at the compose "db" service, regardless of
+      # the host-facing DATABASE_URL in .env (which targets localhost).
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-newsfactcheck}:${POSTGRES_PASSWORD:-change_me}@db:5432/${POSTGRES_DB:-newsfactcheck}
       FASTAPI_ENV: ${FASTAPI_ENV:-development}
     depends_on:
       db:
@@ -36,7 +36,6 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
-    command: sh -c "uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
   frontend:
     build:
@@ -44,7 +43,7 @@ services:
     container_name: newsfactcheck-frontend
     restart: unless-stopped
     env_file:
-      - .env
+      - ./backend/.env
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     depends_on:

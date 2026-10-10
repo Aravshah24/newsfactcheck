@@ -168,6 +168,7 @@ export interface MediaCoverage {
   left_coverage: number;
   center_coverage: number;
   right_coverage: number;
+  unknown_coverage: number | null;
   framing_summary: string | null;
   omitted_context: string[] | string | null;
   methodology: string | null;
@@ -195,6 +196,21 @@ export interface LlmStatus {
   error_code: string | null;
   error: string | null;
   remediation: string | null;
+}
+
+export interface InvestigationListItem {
+  claim_id: number;
+  claim_text: string;
+  status: ClaimStatus | Loose;
+  overall_verdict: OverallVerdict | Loose | null;
+  overall_confidence: number | null;
+  evidence_count: number;
+  created_at: string | null;
+}
+
+export interface InvestigationListResponse {
+  items: InvestigationListItem[];
+  total: number;
 }
 
 export interface InvestigationStateResponse {

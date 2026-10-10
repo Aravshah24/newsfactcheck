@@ -19,15 +19,18 @@ app.include_router(investigations_router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins(),
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
 
 @app.get("/health")
 def health_check() -> dict:
+    from app.retrievers.gdelt import GDELTRetriever
+    from app.retrievers.primary_source import PrimarySourceRetriever
+    from app.retrievers.web_search import WebSearchRetriever
     from app.services.llm import llm_diagnostics
 
     return {
@@ -35,6 +38,11 @@ def health_check() -> dict:
         "service": settings.APP_NAME,
         "environment": settings.APP_ENV,
         "llm": llm_diagnostics(probe=False),
+        "retrieval": {
+            "gdelt": GDELTRetriever().is_available(),
+            "web_search": WebSearchRetriever().is_available(),
+            "primary_source": PrimarySourceRetriever().is_available(),
+        },
     }
 
 

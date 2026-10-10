@@ -2,13 +2,14 @@
 
 This directory defines the storage and artifact conventions for the verification workflow.
 
-## Planned contracts
+## Implemented contracts
 
-- raw evidence items retrieved by retrieval channels
-- agent interpretations and extracted claims
-- evidence provenance metadata and source relationships
-- deduplicated clusters for repeated reports
-- verification outcomes and final writing artifacts
+- Raw evidence items retrieved by retrieval channels → `backend/app/models/document.py` (`Document`)
+- Agent interpretations and extracted claims → `backend/app/models/evidence.py` (`EvidenceItem`, `EvidenceCategory`, `EvidenceStance`, `EvidenceAssessmentStatus`)
+- Evidence provenance metadata and source relationships → `backend/app/models/source_relationship.py` (`SourceRelationship`, `SourceRelationshipType`)
+- Deduplicated clusters for repeated reports → `backend/app/models/evidence_cluster.py` (`EvidenceCluster`)
+- Verification outcomes and final writing artifacts → `backend/app/models/verification.py`, `backend/app/models/report.py`
+- Publisher lean table (AllSides/MBFC/Ad Fontes snapshot + `unknown` bucket) → `backend/app/data/outlet_lean.py`
 
 ## Design principles
 

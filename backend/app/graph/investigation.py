@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Sequence, TypedDict
+import uuid
+from datetime import datetime, timezone
+from typing import Any, Callable, Sequence, TypedDict
 
 from langgraph.graph import END, StateGraph
 from sqlalchemy.orm import Session
@@ -17,6 +19,8 @@ from app.agents.writer import WriterAgent
 from app.config import settings
 from app.db.session import SessionLocal
 from app.models import (
+    AgentRun,
+    AuditEvent,
     Claim,
     ClaimStatus,
     CompletenessResult,
@@ -93,26 +97,33 @@ class InvestigationGraph:
 
     @staticmethod
     def _default_retrievers() -> list[Any]:
-        retrievers: list[Any] = [GDELTRetriever(), WebSearchRetriever()]
-        if settings.PRIMARY_SOURCE_PROVIDER and settings.PRIMARY_SOURCE_API_KEY:
-            retrievers.append(PrimarySourceRetriever())
-        return retrievers
+        # The primary-source channel is deliberately not here: it has its own
+        # dedicated stage ("find_primary_sources") so it is not re-run as part
+        # of discovery or opposition.
+        return [GDELTRetriever(), WebSearchRetriever()]
 
     def build_graph(self):
         graph = StateGraph(InvestigationState)
 
-        graph.add_node("analyze_claim", self._analyze_claim)
-        graph.add_node("discover_sources", self._source_discovery)
-        graph.add_node("check_opposition", self._opposition_search)
-        graph.add_node("find_primary_sources", self._primary_search)
-        graph.add_node("dedupe_documents", self._deduplicate)
-        graph.add_node("extract_evidence", self._evidence_extraction)
-        graph.add_node("cluster_evidence", self._cluster)
-        graph.add_node("calculate_completeness", self._completeness)
-        graph.add_node("verify_claim", self._verification)
-        graph.add_node("summarize_verdict", self._overall_verdict)
-        graph.add_node("analyze_media", self._media_analysis)
-        graph.add_node("write_report", self._writer)
+        # Every stage is wrapped so the pipeline leaves an agent_runs trail and a
+        # linked audit event. Recording is best-effort: a bookkeeping failure is
+        # logged but never allowed to abort a real investigation.
+        stages: list[tuple[str, Callable[[InvestigationState], InvestigationState]]] = [
+            ("analyze_claim", self._analyze_claim),
+            ("discover_sources", self._source_discovery),
+            ("check_opposition", self._opposition_search),
+            ("find_primary_sources", self._primary_search),
+            ("dedupe_documents", self._deduplicate),
+            ("extract_evidence", self._evidence_extraction),
+            ("cluster_evidence", self._cluster),
+            ("calculate_completeness", self._completeness),
+            ("verify_claim", self._verification),
+            ("summarize_verdict", self._overall_verdict),
+            ("analyze_media", self._media_analysis),
+            ("write_report", self._writer),
+        ]
+        for name, handler in stages:
+            graph.add_node(name, self._instrument(name, handler))
 
         graph.set_entry_point("analyze_claim")
         graph.add_edge("analyze_claim", "discover_sources")
@@ -128,6 +139,67 @@ class InvestigationGraph:
         graph.add_edge("analyze_media", "write_report")
         graph.add_edge("write_report", END)
         return graph.compile()
+
+    def _instrument(
+        self,
+        name: str,
+        handler: Callable[[InvestigationState], InvestigationState],
+    ) -> Callable[[InvestigationState], InvestigationState]:
+        """Wrap a stage so it records an ``AgentRun`` and an ``AuditEvent``."""
+
+        def wrapped(state: InvestigationState) -> InvestigationState:
+            started = datetime.now(timezone.utc)
+            try:
+                result = handler(state)
+            except Exception as exc:  # noqa: BLE001 - recorded then re-raised unchanged
+                self._record_agent_run(state, name, started, "failed", error=str(exc))
+                raise
+            self._record_agent_run(result, name, started, "completed")
+            return result
+
+        return wrapped
+
+    def _record_agent_run(
+        self,
+        state: InvestigationState,
+        name: str,
+        started: datetime,
+        status: str,
+        error: str | None = None,
+    ) -> None:
+        """Persist one stage's bookkeeping row. Never raises into the pipeline."""
+        session = state.get("session")
+        claim_id = state.get("claim_id")
+        if session is None or claim_id is None:
+            return
+        completed = datetime.now(timezone.utc)
+        duration_ms = int((completed - started).total_seconds() * 1000)
+        try:
+            with session.begin_nested():
+                # Flush ordering: the claim row must exist before the AgentRun FK.
+                session.flush()
+                run = AgentRun(
+                    claim_id=claim_id,
+                    agent_name=name,
+                    run_id=uuid.uuid4().hex,
+                    started_at=started,
+                    completed_at=completed,
+                    status=status,
+                    output_reference=error,
+                    extra_metadata={"duration_ms": duration_ms, "stage": name},
+                )
+                session.add(run)
+                session.flush()
+                session.add(
+                    AuditEvent(
+                        claim_id=claim_id,
+                        agent_run_id=run.id,
+                        event_type=f"agent_run.{name}",
+                        event_data={"status": status, "duration_ms": duration_ms},
+                    )
+                )
+        except Exception:  # noqa: BLE001 - audit trail must not break the run
+            logger.exception("Failed to record agent run for stage '%s'", name)
 
     # ------------------------------------------------------------------
     # stages
@@ -509,6 +581,7 @@ class InvestigationGraph:
                 left_coverage=data.get("left_coverage"),
                 center_coverage=data.get("center_coverage"),
                 right_coverage=data.get("right_coverage"),
+                unknown_coverage=data.get("unknown_coverage"),
                 framing_summary=data.get("framing_summary"),
                 # The column is text, so structured values are serialised here and
                 # decoded again by the API layer.
@@ -590,6 +663,19 @@ class InvestigationGraph:
                 seen.add(document.id)
 
     @staticmethod
+    def _record_investigation_event(
+        session: Session, claim_id: int, event_type: str, data: dict
+    ) -> None:
+        """Record a claim-level audit event. Best-effort; never raises."""
+        try:
+            with session.begin_nested():
+                session.add(
+                    AuditEvent(claim_id=claim_id, event_type=event_type, event_data=data)
+                )
+        except Exception:  # noqa: BLE001 - audit trail must not break the run
+            logger.exception("Failed to record audit event '%s'", event_type)
+
+    @staticmethod
     def _status_for(overall_verdict: str) -> str:
         # Verification emits SCREAMING_SNAKE verdicts, so compare case-insensitively.
         # Without this every conclusive verdict fell through to ANALYZING.
@@ -659,6 +745,17 @@ class InvestigationGraph:
                 return {"claim_id": None, "status": "failed", "errors": ["Claim was not persisted."]}
 
             claim.status = self._status_for(output["overall_verdict"].get("overall_verdict", ""))
+            self._record_investigation_event(
+                active_session,
+                output["claim_id"],
+                "investigation_completed",
+                {
+                    "verdict": output["overall_verdict"].get("overall_verdict"),
+                    "confidence": output["overall_verdict"].get("overall_confidence"),
+                    "evidence_count": len(output["evidence_items"]),
+                    "error_count": len(output.get("errors", [])),
+                },
+            )
             active_session.commit()
 
             return {

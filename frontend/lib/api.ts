@@ -1,5 +1,6 @@
 import type {
   InvestigationCreateResponse,
+  InvestigationListResponse,
   InvestigationStateResponse,
   ServiceHealth,
 } from './types';
@@ -46,7 +47,7 @@ export function isNetworkFailure(error: unknown): boolean {
 
 interface RequestOptions {
   signal?: AbortSignal;
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'DELETE';
   body?: unknown;
 }
 
@@ -105,6 +106,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     throw new ApiError(detail, response.status, detail);
   }
 
+  // 204 responses and empty bodies are valid for DELETE; callers expect void.
+  if (response.status === 204 || raw === '') {
+    return undefined as T;
+  }
+
   if (payload === null) {
     throw new ApiError('The backend returned a response that could not be read.', response.status, null);
   }
@@ -146,6 +152,16 @@ export function createInvestigation(claim: string, signal?: AbortSignal): Promis
 /** Loads the full persisted result of an investigation. */
 export function getInvestigation(claimId: number, signal?: AbortSignal): Promise<InvestigationStateResponse> {
   return request<InvestigationStateResponse>(`/api/v1/investigations/${claimId}`, { signal });
+}
+
+/** Lists stored investigations, newest first. */
+export function listInvestigations(signal?: AbortSignal): Promise<InvestigationListResponse> {
+  return request<InvestigationListResponse>('/api/v1/investigations', { signal });
+}
+
+/** Deletes a stored investigation and all of its records. */
+export function deleteInvestigation(claimId: number, signal?: AbortSignal): Promise<void> {
+  return request<void>(`/api/v1/investigations/${claimId}`, { method: 'DELETE', signal });
 }
 
 /**

@@ -139,6 +139,8 @@ export function MediaCoveragePanel({ data }: { data: MediaCoverage | null }) {
         <p className="mt-3.5 text-sm leading-relaxed text-ink-700">{data.framing_summary}</p>
       ) : null}
 
+      <LeanCoverage data={data} />
+
       {distribution.length > 0 ? (
         <div className="mt-4 border-t border-paper-200 pt-4">
           <p className="label-micro mb-2.5">Publisher distribution</p>
@@ -186,4 +188,46 @@ function normaliseOmitted(value: MediaCoverage['omitted_context']): string[] {
   if (Array.isArray(value)) return value.filter((entry): entry is string => typeof entry === 'string');
   if (typeof value === 'string' && value.trim()) return [value.trim()];
   return [];
+}
+
+/**
+ * Editorial-lean distribution of the retrieved corpus. The shares are fractions
+ * of the corpus (left/center/right/unknown sum to 1); the reviewer sourcing is
+ * stated in the methodology line below. Lean is coverage, never evidence.
+ */
+function LeanCoverage({ data }: { data: MediaCoverage }) {
+  const rows = [
+    { label: 'Left', value: data.left_coverage },
+    { label: 'Center', value: data.center_coverage },
+    { label: 'Right', value: data.right_coverage },
+    { label: 'Unknown', value: data.unknown_coverage },
+  ];
+  const hasAny = rows.some((row) => typeof row.value === 'number' && row.value > 0);
+  if (!hasAny) return null;
+
+  const percentage = (value: number | null | undefined) =>
+    typeof value === 'number' ? Math.min(100, Math.max(0, Math.round(value * 100))) : 0;
+
+  return (
+    <div className="mt-4 border-t border-paper-200 pt-4">
+      <p className="label-micro mb-2.5">Coverage by editorial lean</p>
+      <ul className="space-y-1.5">
+        {rows.map((row) => {
+          const pct = percentage(row.value);
+          return (
+            <li key={row.label} className="flex items-center gap-2.5">
+              <span className="w-16 shrink-0 text-xs text-ink-600">{row.label}</span>
+              <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-paper-100">
+                <span
+                  className={`block h-full rounded-full ${row.label === 'Unknown' ? 'bg-paper-300' : 'bg-ink-300'}`}
+                  style={{ width: `${pct}%` }}
+                />
+              </span>
+              <span className="tnum w-9 shrink-0 text-right text-2xs text-ink-400">{pct}%</span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
 }

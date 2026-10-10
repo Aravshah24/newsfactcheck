@@ -44,19 +44,6 @@ FATAL_MARKERS = {
 }
 
 
-class LLMConfigurationError(RuntimeError):
-    """The provider rejected the request in a way retrying cannot fix.
-
-    ``code`` is one of the ``LLM_*`` values above so callers and the API can
-    report the exact remediation instead of a generic failure.
-    """
-
-    def __init__(self, code: str, detail: str):
-        super().__init__(f"{code}: {detail}")
-        self.code = code
-        self.detail = detail
-
-
 def classify_error(exc: Exception) -> str | None:
     """Return an ``LLM_*`` code when the failure is permanent, else None."""
     message = f"{type(exc).__name__}: {exc}".lower()
@@ -112,13 +99,11 @@ class LLMClient:
     def is_configured(self) -> bool:
         if self.provider in {"gemini", "google", "google-genai"}:
             return bool(settings.GEMINI_API_KEY or settings.GOOGLE_API_KEY)
-        if self.provider == "openai":
-            return bool(settings.OPENAI_API_KEY)
         return False
 
     def _model_candidates(self) -> list[str]:
         candidates = [self.model]
-        for fallback in settings.LLM_FALLBACK_MODELS or []:
+        for fallback in settings.llm_fallback_models():
             if fallback and fallback not in candidates:
                 candidates.append(fallback)
         return candidates
@@ -130,16 +115,15 @@ class LLMClient:
             )
         if self.provider in {"gemini", "google", "google-genai"}:
             return self._generate_gemini(prompt, system_prompt=system_prompt, **kwargs)
-        if self.provider == "openai":
-            return self._generate_openai(prompt, system_prompt=system_prompt, **kwargs)
         raise LLMUnavailableError(
-            f"Unsupported LLM provider '{self.provider}'. Use 'gemini' or 'openai'."
+            f"Unsupported LLM provider '{self.provider}'. Use 'gemini'."
         )
 
     def _call_with_retry(self, prompt: str, system_prompt: str | None, kwargs: dict[str, Any]) -> str:
         attempts = max(1, int(settings.LLM_MAX_ATTEMPTS))
         backoff = max(0.0, float(settings.LLM_RETRY_BACKOFF_SECONDS))
         last_exc: Exception | None = None
+        last_code: str | None = None
 
         for model in self._model_candidates():
             self.model = model
@@ -148,19 +132,26 @@ class LLMClient:
                     return self._dispatch(prompt, system_prompt, dict(kwargs, model=model))
                 except Exception as exc:  # noqa: BLE001 - provider errors are not uniform
                     last_exc = exc
-                    # Quota, key, and model problems will not clear by retrying, and
-                    # trying every fallback model would only repeat the same failure.
+                    self.last_error = f"{type(exc).__name__}: {exc}"
+                    # Quota, key and model problems do not clear by retrying the
+                    # same model. A bad key affects every model, so stop at once;
+                    # quota, rate limits and availability are scoped to a single
+                    # model, so fall through to the next configured candidate.
                     code = classify_error(exc)
                     if code is not None:
-                        self.last_error = f"{type(exc).__name__}: {exc}"
                         self.last_error_code = code
-                        raise LLMConfigurationError(code, self.last_error)
+                        if code == "LLM_INVALID_KEY":
+                            raise LLMConfigurationError(code, self.last_error)
+                        last_code = code
+                        break
+                    self.last_error_code = None
                     if not _is_retryable(exc):
-                        self.last_error = f"{type(exc).__name__}: {exc}"
                         break
                     if attempt < attempts:
                         time.sleep(backoff * attempt)
 
+        if last_code is not None:
+            raise LLMConfigurationError(last_code, self.last_error or "LLM provider unavailable.")
         self.last_error = f"{type(last_exc).__name__}: {last_exc}" if last_exc else "unknown LLM failure"
         raise LLMUnavailableError(
             f"LLM provider '{self.provider}' could not be reached: {self.last_error}"
@@ -199,6 +190,7 @@ class LLMClient:
     def _generate_gemini(self, prompt: str, *, system_prompt: str | None = None, **kwargs: Any) -> str:
         try:
             from google import genai
+            from google.genai import types
         except ImportError as exc:  # pragma: no cover - environment protection
             raise LLMUnavailableError(
                 "The google-genai package is not installed. Install backend requirements."
@@ -209,7 +201,14 @@ class LLMClient:
             raise LLMUnavailableError("Set GEMINI_API_KEY or GOOGLE_API_KEY to use live LLM reasoning.")
 
         model = str(kwargs.get("model") or self.model)
-        client = genai.Client(api_key=api_key)
+        # Bound every request and disable the SDK's hidden retries. Retry and
+        # fallback policy lives in ``_call_with_retry``; without this a slow or
+        # rate-limited call can hang for minutes with no client-side ceiling.
+        http_options = types.HttpOptions(
+            timeout=int(max(1.0, float(settings.LLM_TIMEOUT_SECONDS)) * 1000),
+            retry_options=types.HttpRetryOptions(attempts=1),
+        )
+        client = genai.Client(api_key=api_key, http_options=http_options)
         full_prompt = prompt if system_prompt is None else f"{system_prompt}\n\n{prompt}"
         response = client.models.generate_content(
             model=model,
@@ -230,30 +229,6 @@ class LLMClient:
                     return assembled.strip()
         raise LLMUnavailableError(f"Gemini model '{model}' returned no content.")
 
-    def _generate_openai(self, prompt: str, *, system_prompt: str | None = None, **kwargs: Any) -> str:
-        try:
-            from openai import OpenAI
-        except ImportError as exc:  # pragma: no cover - environment protection
-            raise LLMUnavailableError("The OpenAI SDK is not installed.") from exc
-
-        if not settings.OPENAI_API_KEY:
-            raise LLMUnavailableError("OPENAI_API_KEY is not configured.")
-
-        model = str(kwargs.get("model") or self.model)
-        client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt or "Return concise fact-checking guidance."},
-                {"role": "user", "content": prompt},
-            ],
-            temperature=float(kwargs.get("temperature", 0.0)),
-        )
-        content = response.choices[0].message.content
-        if not content:
-            raise LLMUnavailableError(f"OpenAI model '{model}' returned no content.")
-        return content.strip()
-
 
 _REMEDIATION = {
     "LLM_QUOTA_EXHAUSTED": (
@@ -261,9 +236,9 @@ _REMEDIATION = {
         "enable billing on the provider account, or set a different API key in .env."
     ),
     "LLM_RATE_LIMITED": "The provider is rate limiting this key. Reduce request volume or use another key.",
-    "LLM_INVALID_KEY": "The API key was rejected. Check GEMINI_API_KEY or OPENAI_API_KEY in .env.",
+    "LLM_INVALID_KEY": "The API key was rejected. Check GEMINI_API_KEY in .env.",
     "LLM_MODEL_NOT_FOUND": "The configured model is unavailable. Set a current LLM_MODEL in .env.",
-    "LLM_NOT_CONFIGURED": "No API key is configured. Set GEMINI_API_KEY or OPENAI_API_KEY in .env.",
+    "LLM_NOT_CONFIGURED": "No API key is configured. Set GEMINI_API_KEY in .env.",
     "LLM_UNREACHABLE": "The provider could not be reached. Check network access and retry.",
 }
 
@@ -274,7 +249,7 @@ def llm_diagnostics(probe: bool = True) -> dict[str, Any]:
     info: dict[str, Any] = {
         "provider": client.provider,
         "model": settings.LLM_MODEL,
-        "fallback_models": list(settings.LLM_FALLBACK_MODELS or []),
+        "fallback_models": settings.llm_fallback_models(),
         "key_configured": client.is_configured(),
         "available": False,
         "error_code": None,
@@ -285,11 +260,11 @@ def llm_diagnostics(probe: bool = True) -> dict[str, Any]:
     if not client.is_configured():
         info["error_code"] = "LLM_NOT_CONFIGURED"
         info["remediation"] = _REMEDIATION["LLM_NOT_CONFIGURED"]
-        return info
+        return _maybe_redact(info)
 
     if not probe:
         info["available"] = True
-        return info
+        return _maybe_redact(info)
 
     try:
         client.generate("Reply with the single word OK.")
@@ -306,6 +281,41 @@ def llm_diagnostics(probe: bool = True) -> dict[str, Any]:
         info["error_code"] = "LLM_UNREACHABLE"
         info["error"] = f"{type(exc).__name__}: {exc}"
         info["remediation"] = _REMEDIATION["LLM_UNREACHABLE"]
+    return _maybe_redact(info)
+
+
+#: Tokens that reveal which provider is behind the system. In demo mode the
+#: report must describe capability without naming the vendor, model, or env keys.
+_PROVIDER_TOKENS = (
+    settings.LLM_MODEL,
+    *settings.llm_fallback_models(),
+    "google-genai",
+    "google",
+    "gemini",
+    "GEMINI_API_KEY",
+    "GOOGLE_API_KEY",
+)
+
+
+def _redact_provider_names(text: str | None) -> str | None:
+    if not text:
+        return text
+    redacted = text
+    for token in _PROVIDER_TOKENS:
+        if token:
+            redacted = redacted.replace(token, "the configured provider")
+    return redacted
+
+
+def _maybe_redact(info: dict[str, Any]) -> dict[str, Any]:
+    """When ``DEMO_MODE`` is on, hide the provider identity from the payload."""
+    if not settings.DEMO_MODE:
+        return info
+    info["provider"] = "provider"
+    info["model"] = None
+    info["fallback_models"] = []
+    info["error"] = _redact_provider_names(info.get("error"))
+    info["remediation"] = _redact_provider_names(info.get("remediation"))
     return info
 
 

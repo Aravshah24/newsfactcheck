@@ -16,6 +16,7 @@ class MediaAnalysis(Base):
     left_coverage: Mapped[float | None] = mapped_column(Float, nullable=True)
     center_coverage: Mapped[float | None] = mapped_column(Float, nullable=True)
     right_coverage: Mapped[float | None] = mapped_column(Float, nullable=True)
+    unknown_coverage: Mapped[float | None] = mapped_column(Float, nullable=True)
     framing_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     omitted_context: Mapped[str | None] = mapped_column(Text, nullable=True)
     publisher_distribution: Mapped[dict | None] = mapped_column(JSON, nullable=True)

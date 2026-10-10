@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.models import SearchChannel, SearchRun
+from app.services.fanout import run_in_parallel
 from app.services.llm import LLMClient, LLMUnavailableError
 
 logger = logging.getLogger(__name__)
@@ -78,30 +79,39 @@ class OppositionAgent:
         documents: list[dict] = []
         seen_urls: set[str] = set()
 
-        for query in self.generate_queries(getattr(subclaim, "text", str(subclaim))):
-            for retriever in self.retrievers:
-                try:
-                    results = retriever.search(subclaim, query, max_results=max_results)
-                except Exception as exc:  # noqa: BLE001 - one channel must not stop the pass
-                    logger.info("Opposition channel %s failed: %s", getattr(retriever, "channel_name", retriever), exc)
-                    if db is not None:
-                        self._record_search(db, subclaim, retriever, query, 0, error=str(exc))
-                    continue
+        tasks: list[tuple[str, object]] = [
+            (query, retriever)
+            for query in self.generate_queries(getattr(subclaim, "text", str(subclaim)))
+            for retriever in self.retrievers
+        ]
+        outcomes = run_in_parallel(
+            [
+                (lambda query=query, retriever=retriever: retriever.search(subclaim, query, max_results=max_results))
+                for query, retriever in tasks
+            ]
+        )
 
+        for (query, retriever), (results, error) in zip(tasks, outcomes):
+            if error is not None:
+                logger.info("Opposition channel %s failed: %s", getattr(retriever, "channel_name", retriever), error)
                 if db is not None:
-                    self._record_search(db, subclaim, retriever, query, len(results))
+                    self._record_search(db, subclaim, retriever, query, 0, error=str(error))
+                continue
 
-                for result in results:
-                    payload = result if isinstance(result, dict) else dict(result)
-                    url = payload.get("url")
-                    if not url or url in seen_urls:
-                        continue
-                    seen_urls.add(url)
-                    payload.setdefault("retrieval_channel", getattr(retriever, "channel_name", SearchChannel.OTHER.value))
-                    payload["search_intent"] = "opposition"
-                    documents.append(payload)
-                    if len(documents) >= max_results:
-                        return documents
+            if db is not None:
+                self._record_search(db, subclaim, retriever, query, len(results))
+
+            for result in results:
+                payload = result if isinstance(result, dict) else dict(result)
+                url = payload.get("url")
+                if not url or url in seen_urls:
+                    continue
+                seen_urls.add(url)
+                payload.setdefault("retrieval_channel", getattr(retriever, "channel_name", SearchChannel.OTHER.value))
+                payload["search_intent"] = "opposition"
+                documents.append(payload)
+                if len(documents) >= max_results:
+                    return documents
         return documents
 
     @staticmethod

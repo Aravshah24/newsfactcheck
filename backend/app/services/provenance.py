@@ -191,6 +191,22 @@ _HOST_RULES: tuple[tuple[ProvenanceClass, str, tuple[str, ...]], ...] = (
     ),
 )
 
+#: Concrete domains that publish the authoritative record for a claim. Used as
+#: the domain whitelist for the primary-source channel's domain-restricted
+#: search, so that channel targets statistical bodies, courts, and filing
+#: registries rather than generic pages about the claim.
+AUTHORITATIVE_HOST_DOMAINS = tuple(
+    sorted(
+        {
+            host
+            for provenance_class, _rule, hosts in _HOST_RULES
+            if provenance_class
+            in (ProvenanceClass.COURT_RECORD, ProvenanceClass.REGULATORY_FILING, ProvenanceClass.OFFICIAL_STATISTIC)
+            for host in hosts
+        }
+    )
+)
+
 #: Government domains that are official but not a statistics body.
 _GOVERNMENT_SUFFIXES = (".gov", ".gov.uk", ".gov.in", ".gov.au", ".mil", ".int")
 

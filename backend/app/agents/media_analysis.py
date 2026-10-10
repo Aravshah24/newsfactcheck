@@ -5,6 +5,7 @@ from collections import Counter, defaultdict
 
 from pydantic import BaseModel, Field
 
+from app.data.outlet_lean import LEAN_AS_OF, OUTLET_LEAN
 from app.services.evidence_stance import normalise_stance
 from app.services.llm import LLMClient, LLMUnavailableError
 
@@ -44,8 +45,8 @@ class MediaAnalysisAgent:
         "associated press": "CENTER",
         "ap news": "CENTER",
         "npr": "CENTER",
-        "the new york times": "CENTER",
-        "washington post": "CENTER",
+        "the new york times": "LEFT",
+        "washington post": "LEFT",
         "fox news": "RIGHT",
         "breitbart": "RIGHT",
         "msnbc": "LEFT",
@@ -101,7 +102,11 @@ class MediaAnalysisAgent:
             "Publisher-level orientation describes the distribution of coverage only and does not "
             "indicate whether the claim is true or false."
         )
-        methodology = "Corpus-level framing summary based on publisher distribution and assessed evidence stances."
+        methodology = (
+            "Corpus-level framing summary based on publisher distribution and assessed evidence stances. "
+            "Editorial lean is per independent reviewers (AllSides, Media Bias/Fact Check, Ad Fontes Media) "
+            f"as of {LEAN_AS_OF}; unrated outlets fall in the unknown bucket. Coverage is not evidence."
+        )
 
         if self.llm.is_configured():
             try:
@@ -151,6 +156,9 @@ class MediaAnalysisAgent:
 
     def _orientation_for_publisher(self, name: str) -> str:
         lowered = str(name or "").lower()
+        for token, lean in OUTLET_LEAN.items():
+            if token in lowered:
+                return lean.label
         for token, label in self.ORIENTATION_MAP.items():
             if token in lowered:
                 return label

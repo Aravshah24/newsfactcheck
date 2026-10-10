@@ -1,0 +1,21 @@
+# Dependencies and build output are produced inside the image.
+node_modules
+.next
+out
+
+# Local environment: never bake these into an image.
+.env
+.env.*
+
+# Build caches and logs.
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+
+# Version control and editor metadata.
+.git
+.gitignore
+.dockerignore
+Dockerfile
+.vscode
+.idea

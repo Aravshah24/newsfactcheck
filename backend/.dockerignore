@@ -1,0 +1,25 @@
+# Environment and secrets: never bake these into an image.
+.env
+.env.*
+
+# Python caches and build artifacts.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local databases and logs.
+*.db
+*.sqlite3
+*.log
+
+# Tests and tooling are not needed at runtime.
+tests/
+
+# Version control and editor metadata.
+.git
+.gitignore
+.dockerignore
+.vscode
+.idea

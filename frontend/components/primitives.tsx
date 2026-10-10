@@ -76,6 +76,38 @@ export function EmptyNote({ children }: { children: ReactNode }) {
   );
 }
 
+/** An F beside a short connected trail of nodes: the evidence path. */
+export function LogoMark() {
+  return (
+    <svg viewBox="0 0 36 36" aria-hidden="true" className="h-9 w-9 shrink-0">
+      <rect width="36" height="36" rx="7" className="fill-ink-900" />
+      <text
+        x="12.5"
+        y="25"
+        className="fill-paper-50"
+        fontFamily="Georgia, 'Times New Roman', serif"
+        fontSize="20"
+        fontWeight="700"
+        textAnchor="middle"
+      >
+        F
+      </text>
+      <path
+        d="M23 11.5 L29 16 L23 20.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="text-paper-50 opacity-50"
+      />
+      <circle cx="23" cy="11.5" r="1.9" className="fill-paper-50" />
+      <circle cx="29" cy="16" r="1.9" className="fill-paper-50 opacity-70" />
+      <circle cx="23" cy="20.5" r="1.9" className="fill-paper-50 opacity-40" />
+    </svg>
+  );
+}
+
 /** Renders a plain list of strings, tolerating null and empty input. */
 export function BulletList({ items, glyph = '—' }: { items: readonly string[] | null | undefined; glyph?: string }) {
   if (!items || items.length === 0) {

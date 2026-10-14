@@ -25,6 +25,7 @@ class SubclaimConclusion(Base):
     subclaim_id: Mapped[int] = mapped_column(ForeignKey("subclaims.id"), nullable=False, index=True)
     verdict: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    calibrated_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
     independent_source_groups: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     supporting_evidence_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)

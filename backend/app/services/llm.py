@@ -89,7 +89,7 @@ class LLMClient:
 
     def __init__(self, provider: str | None = None, model: str | None = None):
         self.provider = (provider or settings.LLM_PROVIDER or "gemini").lower()
-        self.model = model or settings.LLM_MODEL or "gemini-3.8-flash"
+        self.model = model or settings.LLM_MODEL or "gemini-3.1-flash-lite"
         self.last_error: str | None = None
         self.last_error_code: str | None = None
 

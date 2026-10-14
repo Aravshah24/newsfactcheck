@@ -20,7 +20,6 @@ def test_fallback_models_strip_whitespace_and_blank_entries() -> None:
 def test_fallback_models_default_when_empty() -> None:
     settings = Settings(LLM_FALLBACK_MODELS="")
     assert settings.llm_fallback_models() == [
-        "gemini-3.8-flash",
-        "gemini-flash-latest",
-        "gemini-2.5-flash",
+        "gemini-3.1-flash-lite",
+        "gemini-3.5-flash-lite",
     ]

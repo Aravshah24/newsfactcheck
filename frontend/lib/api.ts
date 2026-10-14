@@ -164,6 +164,14 @@ export function deleteInvestigation(claimId: number, signal?: AbortSignal): Prom
   return request<void>(`/api/v1/investigations/${claimId}`, { method: 'DELETE', signal });
 }
 
+/** Requests cancellation of a running investigation. */
+export function cancelInvestigation(claimId: number, signal?: AbortSignal): Promise<{ detail: string }> {
+  return request<{ detail: string }>(`/api/v1/investigations/${claimId}/cancel`, {
+    method: 'POST',
+    signal,
+  });
+}
+
 /**
  * Non-probing service health, used for the connection indicator. This reads
  * configuration only and never consumes provider quota.

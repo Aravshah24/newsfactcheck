@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { cancelInvestigation } from '@/lib/api';
 
 /**
  * The backend runs the pipeline synchronously and reports no intermediate
@@ -21,11 +22,27 @@ export function InvestigationRunning({
   claim,
   elapsedSeconds,
   onCancel,
+  onCancelInvestigation,
+  claimId,
 }: {
   claim: string;
   elapsedSeconds: number;
   onCancel: () => void;
+  onCancelInvestigation?: () => Promise<void>;
+  claimId?: number;
 }) {
+  const [cancelling, setCancelling] = useState(false);
+
+  const handleCancelInvestigation = async () => {
+    if (!claimId || !onCancelInvestigation) return;
+    setCancelling(true);
+    try {
+      await onCancelInvestigation();
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   return (
     <div className="animate-fade-rise rounded-lg border border-paper-200 bg-white p-6 sm:p-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -60,16 +77,30 @@ export function InvestigationRunning({
       </ul>
 
       <div className="mt-6 border-t border-paper-200 pt-4">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="text-sm font-medium text-ink-600 underline decoration-paper-300 underline-offset-4 transition hover:text-ink-900 hover:decoration-ink-400"
-        >
-          Stop waiting
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="text-sm font-medium text-ink-600 underline decoration-paper-300 underline-offset-4 transition hover:text-ink-900 hover:decoration-ink-400"
+          >
+            Stop waiting
+          </button>
+          {claimId && onCancelInvestigation && (
+            <button
+              type="button"
+              onClick={handleCancelInvestigation}
+              disabled={cancelling}
+              className="text-sm font-medium text-rose-600 underline decoration-rose-300 underline-offset-4 transition hover:text-rose-900 hover:decoration-rose-400 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {cancelling ? 'Cancelling…' : 'Cancel investigation'}
+            </button>
+          )}
+        </div>
         <p className="mt-1.5 text-xs leading-relaxed text-ink-400">
-          This stops waiting for the response. The backend keeps working, and the finished investigation
-          will be stored and can be reopened by its id.
+          <strong>Stop waiting:</strong> Backend keeps working; you can reopen the investigation from the list below.
+          {claimId && onCancelInvestigation && (
+            <> <br /> <strong>Cancel investigation:</strong> Actually stops the backend process. The investigation will be marked as cancelled. </>
+          )}
         </p>
       </div>
     </div>

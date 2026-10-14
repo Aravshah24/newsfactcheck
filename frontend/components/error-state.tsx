@@ -71,9 +71,9 @@ function describe(error: unknown): {
   if (error instanceof ApiError) {
     if (error.detail === 'cancelled') {
       return {
-        title: 'Investigation cancelled',
+        title: 'Investigation running in background',
         detail: null,
-        hint: 'You stopped waiting for the result. The backend may still be running the investigation.',
+        hint: 'You stopped waiting for the response. The backend is still processing the investigation. It will be saved and can be reopened from the "Stored investigations" list below.',
         retryable: true,
       };
     }

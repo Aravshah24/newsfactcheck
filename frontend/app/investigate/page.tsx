@@ -15,7 +15,7 @@ import { InvestigationRunning, useElapsed } from '@/components/investigation-run
 import { EmptyNote, LogoMark, Section, Stat } from '@/components/primitives';
 import { ResearchReport } from '@/components/research-report';
 import { VerdictSummary, VerificationList } from '@/components/verdict-summary';
-import { API_BASE_URL, createInvestigation, deleteInvestigation, getHealth, getInvestigation, listInvestigations } from '@/lib/api';
+import { API_BASE_URL, cancelInvestigation, createInvestigation, deleteInvestigation, getHealth, getInvestigation, listInvestigations } from '@/lib/api';
 import { formatConfidence, formatDate, overallVerdictDescriptor } from '@/lib/format';
 import type { InvestigationListItem, InvestigationStateResponse, LlmStatus, ServiceHealth } from '@/lib/types';
 
@@ -206,6 +206,15 @@ export default function Home() {
                   claim={activeClaim}
                   elapsedSeconds={elapsed}
                   onCancel={() => abortRef.current?.abort()}
+                  onCancelInvestigation={async () => {
+                    const controller = new AbortController();
+                    try {
+                      await cancelInvestigation(result?.claim_id || 0, controller.signal);
+                    } catch {
+                      // Ignore errors; the backend will handle cancellation
+                    }
+                  }}
+                  claimId={result?.claim_id}
                 />
               </div>
             ) : null}

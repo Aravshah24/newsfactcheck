@@ -3,9 +3,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 #: Models tried in order when the primary model is unavailable or rate-limited.
 _DEFAULT_FALLBACK_MODELS = (
-    "gemini-3.8-flash",
-    "gemini-flash-latest",
-    "gemini-2.5-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash-lite",
 )
 
 
@@ -23,7 +22,7 @@ class Settings(BaseSettings):
     NEXT_PUBLIC_API_URL: str | None = None
 
     LLM_PROVIDER: str = "gemini"
-    LLM_MODEL: str = "gemini-3.8-flash"
+    LLM_MODEL: str = "gemini-3.1-flash-lite"
     #: Comma-separated list. Kept as a plain string so it parses identically
     #: whether it arrives from the environment, a .env file, or a test. Use
     #: ``llm_fallback_models()`` to read it as a list.
@@ -92,6 +91,12 @@ class Settings(BaseSettings):
     SEARCH_MAX_QUERIES_PER_SUBCLAIM: int = 4
     SEARCH_MAX_RESULTS_PER_QUERY: int = 5
     OPPOSITION_MAX_RESULTS: int = 5
+
+    # Crawler settings (full-page fetching for retrieval channels)
+    CRAWLER_ENABLED: bool = True
+    CRAWLER_TIMEOUT_SECONDS: float = 15.0
+    CRAWLER_MAX_CHARS: int = 8000
+    CRAWLER_MIN_INTERVAL_SECONDS: float = 2.0
 
     model_config = SettingsConfigDict(
         env_file=".env",

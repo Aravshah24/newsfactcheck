@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 class InvestigationCreateRequest(BaseModel):
     claim: str = Field(..., min_length=1, max_length=4000)
+    trace_enabled: bool = False
 
 
 class InvestigationCreateResponse(BaseModel):
@@ -16,6 +17,7 @@ class InvestigationCreateResponse(BaseModel):
     overall_verdict: str | None = None
     llm_available: bool = True
     llm_status: dict = Field(default_factory=dict)
+    trace: list[dict] = Field(default_factory=list)
 
 
 class InvestigationListItem(BaseModel):
@@ -63,6 +65,7 @@ class VerificationView(BaseModel):
     subclaim_text: str | None = None
     verdict: str = "insufficient_evidence"
     confidence: float = 0.0
+    calibrated_confidence: float | None = None
     rationale: str = ""
     supporting_evidence_count: int = 0
     contradicting_evidence_count: int = 0
@@ -96,3 +99,4 @@ class InvestigationStateResponse(BaseModel):
     retrieval_stats: dict | None = None
     llm_available: bool = False
     llm_status: dict = Field(default_factory=dict)
+    trace: list[dict] = Field(default_factory=list)

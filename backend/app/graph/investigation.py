@@ -10,6 +10,7 @@ from langgraph.graph import END, StateGraph
 from sqlalchemy.orm import Session
 
 from app.agents.completeness import CompletenessAgent
+from app.agents.decomposition_validator import DecompositionValidator, SelfConsistentDecomposer
 from app.agents.evidence_extraction import EvidenceExtractor
 from app.agents.media_analysis import MediaAnalysisAgent
 from app.agents.opposition import OppositionAgent
@@ -76,6 +77,9 @@ class InvestigationState(TypedDict, total=False):
     session: Session
     retrievers: list[Any]
     engine: Any
+    # Trace for reasoning path explanation
+    trace: list[dict]
+    trace_enabled: bool
 
 
 class InvestigationGraph:
@@ -94,6 +98,15 @@ class InvestigationGraph:
         self.llm = LLMClient()
         #: Set when live reasoning is unavailable, so the pipeline never degrades silently.
         self.llm_status: dict = {}
+
+    def _check_cancellation(self, state: InvestigationState) -> None:
+        """Check if cancellation was requested and raise an exception if so."""
+        if state.get("claim_id") is not None:
+            claim = state["session"].get(Claim, state["claim_id"])
+            if claim and claim.cancel_requested:
+                state["status"] = ClaimStatus.CANCELLED.value
+                state["errors"].append("Investigation cancelled by user request.")
+                raise RuntimeError("Investigation cancelled by user request.")
 
     @staticmethod
     def _default_retrievers() -> list[Any]:
@@ -205,13 +218,42 @@ class InvestigationGraph:
     # stages
     # ------------------------------------------------------------------
     def _analyze_claim(self, state: InvestigationState) -> InvestigationState:
+        self._check_cancellation(state)
         session: Session = state["session"]
-        claim = ClaimAnalyzer(self.llm).persist_claim(session, state["claim_text"])
+        claim_text = state["claim_text"]
+
+        # Use self-consistent decomposer with validation
+        decomposer = SelfConsistentDecomposer(self.llm)
+        subclaim_texts, quality = decomposer.decompose_with_consensus(claim_text)
+
+        # Persist claim with validated subclaims
+        claim = Claim(
+            claim_text=claim_text,
+            normalized_claim=claim_text.strip(),
+            status=ClaimStatus.ANALYZING.value,
+        )
+        session.add(claim)
+        session.flush()
+
+        subclaims: list[Subclaim] = []
+        for index, segment in enumerate(subclaim_texts, start=1):
+            subclaims.append(
+                Subclaim(
+                    claim=claim,
+                    text=segment,
+                    normalized_text=segment.strip(),
+                    subclaim_type=ClaimAnalyzer._infer_subclaim_type_static(segment).value,
+                    priority=index,
+                )
+            )
+        session.add_all(subclaims)
+        session.flush()
+
+        claim.status = ClaimStatus.ANALYZING.value
+
         state["claim_id"] = claim.id
         state["status"] = "analyzing"
-        state["subclaims"] = (
-            session.query(Subclaim).filter(Subclaim.claim_id == claim.id).order_by(Subclaim.priority).all()
-        )
+        state["subclaims"] = subclaims
         state["errors"] = []
         state["documents"] = []
         state["evidence_items"] = []
@@ -227,9 +269,27 @@ class InvestigationGraph:
         state["llm_available"] = self.llm.is_configured()
         state["llm_status"] = self.llm_status
         state["engine"] = self.engine
+        state["trace"] = []
+        state["trace_enabled"] = state.get("trace_enabled", False)
+
+        # Store decomposition quality in state for downstream use
+        state["decomposition_quality"] = quality
+
+        if state["trace_enabled"]:
+            state["trace"].append({
+                "stage": "claim_analysis",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "input": {"claim_text": claim_text},
+                "output": {
+                    "claim_id": claim.id,
+                    "subclaims": [{"id": sc.id, "text": sc.text, "type": sc.subclaim_type} for sc in subclaims],
+                    "decomposition_quality": quality,
+                },
+            })
         return state
 
     def _source_discovery(self, state: InvestigationState) -> InvestigationState:
+        self._check_cancellation(state)
         session: Session = state["session"]
         retrievers = state.get("retrievers") or self._default_retrievers()
         discovery_agent = SourceDiscoveryAgent(retrievers, llm=self.llm)
@@ -247,9 +307,17 @@ class InvestigationGraph:
                 continue
             documents.extend(found)
         self._merge_documents(state, documents)
+        if state.get("trace_enabled"):
+            state["trace"].append({
+                "stage": "source_discovery",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "input": {"subclaim_count": len(state["subclaims"])},
+                "output": {"documents_found": len(documents), "total_documents": len(state["documents"])},
+            })
         return state
 
     def _opposition_search(self, state: InvestigationState) -> InvestigationState:
+        self._check_cancellation(state)
         session: Session = state["session"]
         retrievers = state.get("retrievers") or self._default_retrievers()
         opposition_agent = OppositionAgent(retrievers, llm=self.llm)
@@ -270,13 +338,28 @@ class InvestigationGraph:
                 state["errors"].append(f"opposition_failed:{subclaim.id}:{exc}")
                 continue
             self._merge_documents(state, found)
+        if state.get("trace_enabled"):
+            state["trace"].append({
+                "stage": "opposition_search",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "input": {"subclaim_count": len(state["subclaims"])},
+                "output": {"documents_found": len(documents), "total_documents": len(state["documents"])},
+            })
         return state
 
     def _primary_search(self, state: InvestigationState) -> InvestigationState:
+        self._check_cancellation(state)
         session: Session = state["session"]
         retriever = PrimarySourceRetriever()
         if not retriever.is_available():
             state["primary_status"] = "NOT_CONFIGURED"
+            if state.get("trace_enabled"):
+                state["trace"].append({
+                    "stage": "primary_search",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "input": {"subclaim_count": len(state["subclaims"])},
+                    "output": {"status": "NOT_CONFIGURED", "documents_found": 0},
+                })
             return state
 
         documents: list[Document] = []
@@ -299,9 +382,17 @@ class InvestigationGraph:
 
         state["primary_status"] = "FOUND" if found else ("SEARCH_FAILED" if failed else "NOT_FOUND")
         self._merge_documents(state, documents)
+        if state.get("trace_enabled"):
+            state["trace"].append({
+                "stage": "primary_search",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "input": {"subclaim_count": len(state["subclaims"])},
+                "output": {"status": state["primary_status"], "documents_found": len(documents)},
+            })
         return state
 
     def _deduplicate(self, state: InvestigationState) -> InvestigationState:
+        self._check_cancellation(state)
         from app.services.deduplication import DeduplicationService
 
         session: Session = state["session"]
@@ -315,9 +406,17 @@ class InvestigationGraph:
             state["retrieval_stats"]["search_runs"] = (
                 session.query(SearchRun).filter(SearchRun.claim_id == claim_id).count()
             )
+        if state.get("trace_enabled"):
+            state["trace"].append({
+                "stage": "deduplication",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "input": {"raw_documents": before},
+                "output": {"unique_documents": len(state["documents"]), "deduplicated": before - len(state["documents"])},
+            })
         return state
 
     def _evidence_extraction(self, state: InvestigationState) -> InvestigationState:
+        self._check_cancellation(state)
         session: Session = state["session"]
         extractor = EvidenceExtractor(state.get("engine") or self.engine)
         documents = list(state["documents"])[: max(1, settings.EVIDENCE_MAX_DOCUMENTS_ASSESSED)]
@@ -419,9 +518,17 @@ class InvestigationGraph:
             }
             for evidence in evidences
         ]
+        if state.get("trace_enabled"):
+            state["trace"].append({
+                "stage": "evidence_extraction",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "input": {"documents_assessed": len(documents), "subclaims": len(subclaims)},
+                "output": {"evidence_items_created": len(evidences)},
+            })
         return state
 
     def _cluster(self, state: InvestigationState) -> InvestigationState:
+        self._check_cancellation(state)
         session: Session = state["session"]
         claim = session.get(Claim, state["claim_id"])
         if claim is None:
@@ -436,15 +543,39 @@ class InvestigationGraph:
         EvidenceClusteringService().cluster_from_independence(
             session, claim, summary, state["evidence_items"]
         )
+        if state.get("trace_enabled"):
+            state["trace"].append({
+                "stage": "independence_clustering",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "input": {"documents": len(state["documents"]), "evidence_items": len(state["evidence_items"])},
+                "output": {
+                    "independent_groups": summary.independent_groups,
+                    "distinct_publishers": summary.distinct_publishers,
+                    "duplicate_documents": summary.duplicate_documents,
+                },
+            })
         return state
 
     def _completeness(self, state: InvestigationState) -> InvestigationState:
-        state["completeness"] = CompletenessAgent(self.llm).analyze(
+        self._check_cancellation(state)
+        data = CompletenessAgent(self.llm).analyze(
             state["claim_text"], state["evidence_items"], state["subclaims"]
         )
+        state["completeness"] = data
+        if state.get("trace_enabled"):
+            state["trace"].append({
+                "stage": "completeness_analysis",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "input": {"evidence_items": len(state["evidence_items"]), "subclaims": len(state["subclaims"])},
+                "output": {
+                    "completeness_status": data.get("completeness_status"),
+                    "missing_context_count": len(data.get("missing_context", [])),
+                },
+            })
         return state
 
     def _verification(self, state: InvestigationState) -> InvestigationState:
+        self._check_cancellation(state)
         session: Session = state["session"]
         verification_agent = VerificationAgent(self.llm)
         results: list[dict] = []
@@ -461,6 +592,7 @@ class InvestigationGraph:
                 completeness_result=state["completeness"],
                 primary_status=state["primary_status"],
                 independence_summary=state["source_independence"],
+                session=session,
             )
             results.append(result)
             session.add(
@@ -468,6 +600,7 @@ class InvestigationGraph:
                     subclaim_id=subclaim.id,
                     verdict=result["verdict"],
                     confidence=result["confidence"],
+                    calibrated_confidence=result.get("calibrated_confidence"),
                     rationale=result["rationale"],
                     supporting_evidence_count=result["supporting_evidence_count"],
                     contradicting_evidence_count=result["contradicting_evidence_count"],
@@ -478,6 +611,18 @@ class InvestigationGraph:
 
         self._record_completeness(session, state)
         state["verification_results"] = results
+        if state.get("trace_enabled"):
+            verdicts = [r["verdict"] for r in results]
+            state["trace"].append({
+                "stage": "verification",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "input": {"subclaims": len(state["subclaims"]), "evidence_items": len(state["evidence_items"])},
+                "output": {
+                    "verdicts": verdicts,
+                    "confidences": [r["confidence"] for r in results],
+                    "calibrated_confidences": [r.get("calibrated_confidence") for r in results],
+                },
+            })
         return state
 
     def _record_completeness(self, session: Session, state: InvestigationState) -> None:
@@ -512,6 +657,7 @@ class InvestigationGraph:
                 subclaim_id=subclaim.id,
                 verdict=result["verdict"],
                 confidence=result["confidence"],
+                calibrated_confidence=result.get("calibrated_confidence"),
                 rationale=result["rationale"],
                 independent_source_groups=result.get("independent_supporting_groups", 0),
                 role_weighted_support=result.get("role_weighted_support"),
@@ -571,6 +717,7 @@ class InvestigationGraph:
         return sum(float(result.get("confidence", 0.0)) for result in results) / len(results)
 
     def _media_analysis(self, state: InvestigationState) -> InvestigationState:
+        self._check_cancellation(state)
         session: Session = state["session"]
         data = MediaAnalysisAgent(self.llm).analyze(
             state["claim_text"], state["documents"], state["evidence_items"]
@@ -594,9 +741,21 @@ class InvestigationGraph:
         )
         session.flush()
         state["media_analysis"] = data
+        if state.get("trace_enabled"):
+            state["trace"].append({
+                "stage": "media_analysis",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "input": {"documents": len(state["documents"]), "evidence_items": len(state["evidence_items"])},
+                "output": {
+                    "polarization_score": data.get("polarization_score"),
+                    "lean_distribution": data.get("lean_distribution"),
+                    "blindspots": data.get("blindspots"),
+                },
+            })
         return state
 
     def _writer(self, state: InvestigationState) -> InvestigationState:
+        self._check_cancellation(state)
         session: Session = state["session"]
         report_text = WriterAgent(self.llm).write(
             state["claim_text"],
@@ -635,6 +794,13 @@ class InvestigationGraph:
         session.flush()
         state["report"] = report_text
         state["status"] = "completed"
+        if state.get("trace_enabled"):
+            state["trace"].append({
+                "stage": "report_generation",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "input": {"claim_text": state["claim_text"][:200]},
+                "output": {"report_length": len(report_text), "final_verdict": state["overall_verdict"].get("overall_verdict")},
+            })
         return state
 
     # ------------------------------------------------------------------
@@ -692,6 +858,7 @@ class InvestigationGraph:
         retrievers: Sequence[Any] | None = None,
         session_factory=None,
         session: Session | None = None,
+        trace_enabled: bool = False,
     ) -> dict[str, Any]:
         """Run the investigation to completion.
 
@@ -736,6 +903,8 @@ class InvestigationGraph:
                 "retrievers": list(retrievers if retrievers is not None else self._default_retrievers()),
                 "session": active_session,
                 "engine": self.engine,
+                "trace": [],
+                "trace_enabled": trace_enabled,
             }
             output = self.build_graph().invoke(state)
 
@@ -780,6 +949,27 @@ class InvestigationGraph:
                 "llm_status": output.get("llm_status", self.llm_status),
                 "report": output["report"],
                 "evidence": output["evidence"],
+            }
+        except RuntimeError as exc:
+            if "cancelled" in str(exc).lower():
+                active_session.rollback()
+                return {
+                    "claim_id": output.get("claim_id") if "output" in locals() else None,
+                    "status": "cancelled",
+                    "errors": ["Investigation cancelled by user request."],
+                    "subclaims": [],
+                    "documents": [],
+                    "evidence_count": 0,
+                }
+            active_session.rollback()
+            logger.exception("Investigation workflow failed for claim_text=%s", claim_text)
+            return {
+                "claim_id": None,
+                "status": "failed",
+                "errors": [str(exc)],
+                "subclaims": [],
+                "documents": [],
+                "evidence_count": 0,
             }
         except Exception as exc:  # noqa: BLE001 - surface failure to the caller
             active_session.rollback()

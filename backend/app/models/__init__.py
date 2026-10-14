@@ -1,10 +1,12 @@
 from app.models.agent_run import AgentRun
 from app.models.audit import AuditEvent
+from app.models.calibration import CalibrationLabel, CalibrationModel, GroundTruthCalibration
 from app.models.claim import Claim, ClaimStatus
 from app.models.completeness import CompletenessResult
 from app.models.document import Document, DocumentSourceType
 from app.models.evidence import EvidenceAssessmentStatus, EvidenceCategory, EvidenceItem, EvidenceStance
 from app.models.evidence_cluster import EvidenceCluster
+from app.models.ground_truth import GroundTruthClaim, GroundTruthEvidence, GroundTruthSource
 from app.models.media_analysis import MediaAnalysis
 from app.models.publisher import Publisher, PublisherType
 from app.models.report import Report
@@ -17,6 +19,8 @@ from app.models.verification import VerificationResult, VerificationVerdict
 __all__ = [
     "AgentRun",
     "AuditEvent",
+    "CalibrationLabel",
+    "CalibrationModel",
     "Claim",
     "ClaimStatus",
     "CompletenessResult",
@@ -27,6 +31,10 @@ __all__ = [
     "EvidenceCluster",
     "EvidenceItem",
     "EvidenceStance",
+    "GroundTruthCalibration",
+    "GroundTruthClaim",
+    "GroundTruthEvidence",
+    "GroundTruthSource",
     "MediaAnalysis",
     "Publisher",
     "PublisherType",

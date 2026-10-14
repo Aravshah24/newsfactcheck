@@ -92,6 +92,11 @@ class ClaimAnalyzer:
         return claim
 
     @staticmethod
+    def _infer_subclaim_type_static(segment: str) -> SubclaimType:
+        """Static wrapper for _infer_subclaim_type for use without instance."""
+        return ClaimAnalyzer._infer_subclaim_type(segment)
+
+    @staticmethod
     def _infer_subclaim_type(segment: str) -> SubclaimType:
         """Classify a subclaim by the linguistic shape of the assertion."""
         lower = segment.lower()

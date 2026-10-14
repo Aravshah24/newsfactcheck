@@ -4,10 +4,13 @@ import logging
 from typing import Any
 
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 from app.models import EvidenceStance, VerificationVerdict
 from app.services.evidence_role import EvidenceRole, is_official, weight_for
 from app.services.evidence_stance import normalise_stance
 from app.services.llm import LLMClient, LLMUnavailableError
+from app.services.calibration import ConfidenceCalibrator
+from app.services.ground_truth import apply_ground_truth_claim, lookup_ground_truth_claim
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +105,33 @@ class VerificationAgent:
         completeness_result: dict | None = None,
         primary_status: str = "NOT_FOUND",
         independence_summary: dict | None = None,
+        session: Session | None = None,
     ) -> dict:
+        # Check for ground truth fallback first (claim-level)
+        if session is not None:
+            claim_text = getattr(subclaim, "text", str(subclaim))
+            gt_claim = lookup_ground_truth_claim(session, claim_text)
+            if gt_claim:
+                logger.info("Using ground truth claim for subclaim %s", getattr(subclaim, "id", "unknown"))
+                return {
+                    "subclaim_id": getattr(subclaim, "id", None),
+                    "subclaim_text": getattr(subclaim, "text", None),
+                    "verdict": gt_claim.overall_verdict,
+                    "confidence": gt_claim.overall_confidence,
+                    "calibrated_confidence": gt_claim.overall_confidence,
+                    "rationale": f"Ground truth fallback (source: {gt_claim.source})",
+                    "supporting_evidence_count": 0,
+                    "contradicting_evidence_count": 0,
+                    "context_evidence_count": 0,
+                    "independent_supporting_groups": 0,
+                    "independent_groups": 0,
+                    "role_weighted_support": 0.0,
+                    "role_weighted_contradiction": 0.0,
+                    "primary_evidence_status": "NOT_SEARCHED",
+                    "method": f"ground_truth_fallback_{gt_claim.source}",
+                    "applied_rules": ["ground_truth_fallback"],
+                }
+
         items = list(evidence_items or [])
         completeness = completeness_result or {"completeness_status": "UNKNOWN", "missing_context": []}
 
@@ -253,11 +282,20 @@ class VerificationAgent:
         elif primary_status == "SEARCH_FAILED" and supporting:
             confidence = max(0.1, confidence - 0.05)
 
+        # Apply confidence calibration if session provided
+        calibrated_confidence = confidence
+        if session is not None:
+            calibrator = ConfidenceCalibrator(session)
+            _, calibrated_confidence = calibrator.calibrate_verdict(
+                verdict, confidence, independent_groups, weighted_support
+            )
+
         return {
             "subclaim_id": getattr(subclaim, "id", None),
             "subclaim_text": getattr(subclaim, "text", None),
             "verdict": verdict,
             "confidence": round(confidence, 2),
+            "calibrated_confidence": round(calibrated_confidence, 2) if calibrated_confidence is not None else None,
             "rationale": rationale,
             "supporting_evidence_count": len(supporting),
             "contradicting_evidence_count": len(contradicting),

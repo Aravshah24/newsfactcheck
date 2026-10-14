@@ -25,6 +25,7 @@ class VerificationResult(Base):
     subclaim_id: Mapped[int] = mapped_column(ForeignKey("subclaims.id"), nullable=False, index=True)
     verdict: Mapped[str] = mapped_column(String(40), default=VerificationVerdict.INSUFFICIENT_EVIDENCE.value, nullable=False)
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    calibrated_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
     supporting_evidence_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     contradicting_evidence_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

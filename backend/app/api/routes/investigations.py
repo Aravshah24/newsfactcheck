@@ -39,7 +39,7 @@ def create_investigation(
     inspectable result rather than a placeholder. A long-running asynchronous
     mode can be layered on later without changing the response contract.
     """
-    result = InvestigationGraph().run_investigation(payload.claim, session=db)
+    result = InvestigationGraph().run_investigation(payload.claim, session=db, trace_enabled=payload.trace_enabled)
 
     if result.get("status") == "failed" or result.get("claim_id") is None:
         logger.error("Investigation failed for claim: %s", payload.claim)
@@ -52,6 +52,7 @@ def create_investigation(
         overall_verdict=result.get("overall_verdict", {}).get("overall_verdict"),
         llm_available=bool(result.get("llm_available", False)),
         llm_status=result.get("llm_status", {}),
+        trace=result.get("trace", []),
     )
 
 
@@ -179,6 +180,7 @@ def get_investigation(claim_id: int, db: Session = Depends(get_db)) -> Investiga
                 "subclaim_text": subclaim.text,
                 "verdict": conclusion.verdict,
                 "confidence": conclusion.confidence or 0.0,
+                "calibrated_confidence": conclusion.calibrated_confidence,
                 "rationale": conclusion.rationale or "",
                 "supporting_evidence_count": _count(evidence, subclaim.id, "supports"),
                 "contradicting_evidence_count": _count(evidence, subclaim.id, "contradicts"),
@@ -230,6 +232,24 @@ def delete_investigation(claim_id: int, db: Session = Depends(get_db)) -> None:
     # agent runs and audit events. Retrieved documents are shared and stay.
     db.delete(claim)
     db.commit()
+
+
+@router.post("/investigations/{claim_id}/cancel", status_code=status.HTTP_200_OK)
+def cancel_investigation(claim_id: int, db: Session = Depends(get_db)) -> dict:
+    """Request cancellation of a running investigation."""
+    claim = db.get(Claim, claim_id)
+    if claim is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Investigation not found.")
+    if claim.cancel_requested:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cancellation already requested.")
+    if claim.status in {ClaimStatus.VERIFIED.value, ClaimStatus.ARCHIVED.value, ClaimStatus.CANCELLED.value}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot cancel investigation with status '{claim.status}'.",
+        )
+    claim.cancel_requested = True
+    db.commit()
+    return {"detail": "Cancellation requested. The investigation will stop at the next checkpoint."}
 
 
 def _conclusions(db: Session, claim_id: int) -> list:

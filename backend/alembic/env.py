@@ -12,18 +12,25 @@ from app.db.base import Base
 from app.models import (  # noqa: F401
     AgentRun,
     AuditEvent,
+    CalibrationLabel,
+    CalibrationModel,
     Claim,
     CompletenessResult,
     Document,
     EvidenceCluster,
     EvidenceItem,
+    GroundTruthCalibration,
+    GroundTruthClaim,
+    GroundTruthEvidence,
     MediaAnalysis,
     Publisher,
     Report,
     SearchRun,
     SourceRelationship,
     Subclaim,
+    SubclaimConclusion,
     VerificationResult,
+    VerificationVerdict,
 )
 
 config = context.config

@@ -14,6 +14,7 @@ class ClaimStatus(str, Enum):
     ANALYZING = "analyzing"
     VERIFIED = "verified"
     ARCHIVED = "archived"
+    CANCELLED = "cancelled"
 
 
 class Claim(Base):
@@ -23,6 +24,7 @@ class Claim(Base):
     claim_text: Mapped[str] = mapped_column(Text, nullable=False)
     normalized_claim: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(30), default=ClaimStatus.DRAFT.value, nullable=False)
+    cancel_requested: Mapped[bool] = mapped_column(default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

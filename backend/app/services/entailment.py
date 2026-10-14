@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from app.config import settings
 from app.services.llm import LLMClient, LLMUnavailableError
 from app.services.proposition import DIMENSIONS, Proposition, PropositionExtractor
+from app.services.ground_truth import lookup_ground_truth_evidence
 
 logger = logging.getLogger(__name__)
 
@@ -158,6 +159,7 @@ class EntailmentEngine:
         self,
         propositions: list[Proposition],
         documents: list[tuple[str, str]],
+        session: Session | None = None,
     ) -> list[list[EntailmentResult]]:
         """Assess several documents against several claims, grouped per document.
 
@@ -179,11 +181,11 @@ class EntailmentEngine:
         out: list[list[EntailmentResult]] = []
         for start in range(0, len(prepared), group_size):
             group = prepared[start : start + group_size]
-            out.extend(self._assess_group(list(propositions), group))
+            out.extend(self._assess_group(list(propositions), group, session))
         return out
 
     def _assess_group(
-        self, propositions: list[Proposition], group: list[tuple[str, str]]
+        self, propositions: list[Proposition], group: list[tuple[str, str]], session: Session | None = None
     ) -> list[list[EntailmentResult]]:
         usable = [(title, text) for title, text in group if text or title]
         if not usable:
@@ -192,23 +194,62 @@ class EntailmentEngine:
                 for _ in group
             ]
 
-        try:
-            schema = self.llm.generate_structured(
-                MultiDocumentEntailmentSchema,
-                self._build_group_prompt(propositions, usable),
-                system_prompt=_ENTAILMENT_INSTRUCTION,
-            )
-        except LLMUnavailableError as exc:
-            logger.info("Entailment model unavailable (%s); using non-probative fallback.", exc)
-            fallback = [[self._non_probative_fallback(prop, "llm_unavailable") for prop in propositions] for _ in group]
-            return fallback
-        except Exception as exc:  # noqa: BLE001 - never let one document break extraction
-            logger.warning("Entailment assessment failed: %s", exc)
-            return [[self._non_probative_fallback(prop, "assessment_error") for prop in propositions] for _ in group]
+# Check ground truth evidence before calling LLM
+        gt_results: dict[tuple[int, int], dict] = {}
+        if session is not None:
+            for doc_idx, (title, text) in enumerate(usable):
+                for claim_idx, proposition in enumerate(propositions):
+                    gt = lookup_ground_truth_evidence(session, proposition.text, title)
+                    if gt:
+                        gt_results[(doc_idx, claim_idx)] = gt
 
-        by_pair: dict[tuple[int, int], BatchedEntailmentItem] = {
-            (item.document_index, item.claim_index): item for item in (schema.results or [])
-        }
+        if len(gt_results) == len(propositions) * len(usable):
+            # All pairs have ground truth, skip LLM
+            by_pair = {}
+            for key, gt in gt_results.items():
+                by_pair[key] = BatchedEntailmentItem(
+                    document_index=key[0],
+                    claim_index=key[1],
+                    stance=gt["stance"],
+                    dimensions=[
+                        {"dimension": d, "status": gt["dimension_status"].get(d, "unclear"), "evidence_value": "", "note": ""}
+                        for d in gt["dimension_status"]
+                    ],
+                    confidence=gt["confidence"],
+                    rationale=gt["rationale"] or "Ground truth fallback",
+                )
+        else:
+            try:
+                schema = self.llm.generate_structured(
+                    MultiDocumentEntailmentSchema,
+                    self._build_group_prompt(propositions, usable),
+                    system_prompt=_ENTAILMENT_INSTRUCTION,
+                )
+            except LLMUnavailableError as exc:
+                logger.info("Entailment model unavailable (%s); using non-probative fallback.", exc)
+                fallback = [[self._non_probative_fallback(prop, "llm_unavailable") for prop in propositions] for _ in group]
+                return fallback
+            except Exception as exc:  # noqa: BLE001 - never let one document break extraction
+                logger.warning("Entailment assessment failed: %s", exc)
+                return [[self._non_probative_fallback(prop, "assessment_error") for prop in propositions] for _ in group]
+
+            by_pair: dict[tuple[int, int], BatchedEntailmentItem] = {
+                (item.document_index, item.claim_index): item for item in (schema.results or [])
+            }
+            # Merge ground truth results
+            for key, gt in gt_results.items():
+                by_pair[key] = BatchedEntailmentItem(
+                    document_index=key[0],
+                    claim_index=key[1],
+                    stance=gt["stance"],
+                    dimensions=[
+                        {"dimension": d, "status": gt["dimension_status"].get(d, "unclear"), "evidence_value": "", "note": ""}
+                        for d in gt["dimension_status"]
+                    ],
+                    confidence=gt["confidence"],
+                    rationale=gt["rationale"] or "Ground truth fallback",
+                )
+
         results: list[list[EntailmentResult]] = []
         for document_index in range(len(group)):
             row: list[EntailmentResult] = []
@@ -237,11 +278,12 @@ class EntailmentEngine:
         propositions: list[Proposition],
         evidence_text: str,
         document_title: str = "",
+        session: Session | None = None,
     ) -> list[EntailmentResult]:
         """Assess one document against every subclaim in a single model call."""
         if not propositions:
             return []
-        rows = self.assess_documents(propositions, [(document_title, evidence_text)])
+        rows = self.assess_documents(propositions, [(document_title, evidence_text)], session)
         return rows[0] if rows else []
 
     @staticmethod

@@ -17,16 +17,16 @@ export function SourceIndependence({ data }: { data: SourceIndependence | null }
 
   return (
     <Panel className="p-4 sm:p-5">
-      <p className="text-sm leading-relaxed text-ink-700">
-        <span className="font-semibold text-ink-900 tnum">{data.documents_found}</span>{' '}
+      <p className="text-sm leading-relaxed text-[#374151]">
+        <span className="font-semibold text-[#111827] tnum">{data.documents_found}</span>{' '}
         {pluralise(data.documents_found, 'document')} from{' '}
-        <span className="font-semibold text-ink-900 tnum">{data.distinct_publishers}</span>{' '}
+        <span className="font-semibold text-[#111827] tnum">{data.distinct_publishers}</span>{' '}
         {pluralise(data.distinct_publishers, 'publisher')}, grouped into{' '}
-        <span className="font-semibold text-ink-900 tnum">{data.independent_groups}</span>{' '}
+        <span className="font-semibold text-[#111827] tnum">{data.independent_groups}</span>{' '}
         {pluralise(data.independent_groups, 'independent group')}.
       </p>
 
-      <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-paper-200 pt-4">
+      <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-[#D1D5DB] pt-4">
         <Metric label="Independent sources" value={data.estimated_independent_sources} />
         <Metric label="Evidence clusters" value={data.evidence_clusters} />
         <Metric label="Duplicate / derived" value={data.duplicate_derived_documents} />
@@ -34,29 +34,29 @@ export function SourceIndependence({ data }: { data: SourceIndependence | null }
       </dl>
 
       {groups.length > 0 ? (
-        <div className="mt-4 border-t border-paper-200 pt-4">
+        <div className="mt-4 border-t border-[#D1D5DB] pt-4">
           <p className="label-micro mb-2.5">Group sizes</p>
           <ul className="space-y-1.5">
             {groups.slice(0, 8).map((group) => (
               <li key={group.group_id} className="flex items-center gap-2.5">
-                <span className="tnum w-8 shrink-0 text-2xs text-ink-400">#{group.group_id}</span>
-                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-paper-100">
+                <span className="tnum w-8 shrink-0 text-2xs text-[#6B7280]">#{group.group_id}</span>
+                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#E5E7EB]">
                   <span
-                    className="block h-full rounded-full bg-ink-300"
+                    className="block h-full rounded-full bg-[#4B5563]"
                     style={{ width: `${maxSize > 0 ? (group.document_count / maxSize) * 100 : 0}%` }}
                   />
                 </span>
-                <span className="tnum w-6 shrink-0 text-right text-2xs text-ink-500">
+                <span className="tnum w-6 shrink-0 text-right text-2xs text-[#4B5563]">
                   {group.document_count}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-2xs text-ink-400">
+                <span className="min-w-0 flex-1 truncate text-2xs text-[#6B7280]">
                   {(group.publishers ?? []).join(', ')}
                 </span>
               </li>
             ))}
           </ul>
           {groups.length > 8 ? (
-            <p className="mt-2 text-2xs text-ink-400">and {groups.length - 8} more groups</p>
+            <p className="mt-2 text-2xs text-[#6B7280]">and {groups.length - 8} more groups</p>
           ) : null}
         </div>
       ) : null}
@@ -67,8 +67,8 @@ export function SourceIndependence({ data }: { data: SourceIndependence | null }
 function Metric({ label, value }: { label: string; value: number | null | undefined }) {
   return (
     <div>
-      <dt className="text-2xs uppercase tracking-[0.1em] text-ink-400">{label}</dt>
-      <dd className="tnum mt-0.5 text-base font-semibold text-ink-800">{value ?? '—'}</dd>
+      <dt className="text-2xs uppercase tracking-[0.1em] text-[#6B7280]">{label}</dt>
+      <dd className="tnum mt-0.5 text-base font-semibold text-[#111827]">{value ?? '—'}</dd>
     </div>
   );
 }
@@ -84,28 +84,28 @@ export function Completeness({ data }: { data: CompletenessSummary | null }) {
     <Panel className="p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <VerdictChip descriptor={descriptor} />
-        <span className="tnum text-2xs text-ink-400">
+        <span className="tnum text-2xs text-[#6B7280]">
           {formatConfidence(data.confidence)} confidence
         </span>
       </div>
-      <p className="mt-2.5 text-xs leading-relaxed text-ink-500">{descriptor.description}</p>
+      <p className="mt-2.5 text-xs leading-relaxed text-[#4B5563]">{descriptor.description}</p>
 
       {data.missing_context && data.missing_context.length > 0 ? (
-        <div className="mt-4 border-t border-paper-200 pt-3.5">
+        <div className="mt-4 border-t border-[#D1D5DB] pt-3.5">
           <p className="label-micro mb-2">Missing context</p>
           <BulletList items={data.missing_context} />
         </div>
       ) : null}
 
       {data.qualifications && data.qualifications.length > 0 ? (
-        <div className="mt-4 border-t border-paper-200 pt-3.5">
+        <div className="mt-4 border-t border-[#D1D5DB] pt-3.5">
           <p className="label-micro mb-2">Qualifications a reader needs</p>
           <BulletList items={data.qualifications} />
         </div>
       ) : null}
 
       {!data.missing_context?.length && !data.qualifications?.length ? (
-        <p className="mt-3.5 text-xs leading-relaxed text-ink-400">
+        <p className="mt-3.5 text-xs leading-relaxed text-[#6B7280]">
           No specific omissions were identified in this run.
         </p>
       ) : null}
@@ -131,50 +131,50 @@ export function MediaCoveragePanel({ data }: { data: MediaCoverage | null }) {
 
   return (
     <Panel className="p-4 sm:p-5">
-      <p className="rounded-md bg-paper-100 px-3 py-2 text-xs leading-relaxed text-ink-500">
+      <p className="rounded-md bg-[#E5E7EB]/60 px-3 py-2 text-xs leading-relaxed text-[#4B5563]">
         This section describes who covered the claim. Coverage is not evidence for or against it.
       </p>
 
       {data.framing_summary ? (
-        <p className="mt-3.5 text-sm leading-relaxed text-ink-700">{data.framing_summary}</p>
+        <p className="mt-3.5 text-sm leading-relaxed text-[#374151]">{data.framing_summary}</p>
       ) : null}
 
       <LeanCoverage data={data} />
 
       {distribution.length > 0 ? (
-        <div className="mt-4 border-t border-paper-200 pt-4">
+        <div className="mt-4 border-t border-[#D1D5DB] pt-4">
           <p className="label-micro mb-2.5">Publisher distribution</p>
           <ul className="space-y-1.5">
             {distribution.slice(0, 10).map(([publisher, count]) => (
               <li key={publisher} className="flex items-center gap-2.5">
-                <span className="min-w-0 flex-1 truncate text-xs text-ink-600" title={publisher}>
+                <span className="min-w-0 flex-1 truncate text-xs text-[#374151]" title={publisher}>
                   {publisher}
                 </span>
-                <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-paper-100">
+                <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-[#E5E7EB]">
                   <span
-                    className="block h-full rounded-full bg-ink-300"
+                    className="block h-full rounded-full bg-[#4B5563]"
                     style={{ width: `${total > 0 ? (count / total) * 100 : 0}%` }}
                   />
                 </span>
-                <span className="tnum w-5 shrink-0 text-right text-2xs text-ink-400">{count}</span>
+                <span className="tnum w-5 shrink-0 text-right text-2xs text-[#6B7280]">{count}</span>
               </li>
             ))}
           </ul>
           {distribution.length > 10 ? (
-            <p className="mt-2 text-2xs text-ink-400">and {distribution.length - 10} more publishers</p>
+            <p className="mt-2 text-2xs text-[#6B7280]">and {distribution.length - 10} more publishers</p>
           ) : null}
         </div>
       ) : null}
 
       {omitted.length > 0 ? (
-        <div className="mt-4 border-t border-paper-200 pt-4">
+        <div className="mt-4 border-t border-[#D1D5DB] pt-4">
           <p className="label-micro mb-2">Noted as omitted</p>
           <BulletList items={omitted} />
         </div>
       ) : null}
 
       {data.methodology ? (
-        <p className="mt-4 border-t border-paper-200 pt-3.5 text-2xs leading-relaxed text-ink-400">
+        <p className="mt-4 border-t border-[#D1D5DB] pt-3.5 text-2xs leading-relaxed text-[#6B7280]">
           {data.methodology}
         </p>
       ) : null}
@@ -209,21 +209,21 @@ function LeanCoverage({ data }: { data: MediaCoverage }) {
     typeof value === 'number' ? Math.min(100, Math.max(0, Math.round(value * 100))) : 0;
 
   return (
-    <div className="mt-4 border-t border-paper-200 pt-4">
+    <div className="mt-4 border-t border-[#D1D5DB] pt-4">
       <p className="label-micro mb-2.5">Coverage by editorial lean</p>
       <ul className="space-y-1.5">
         {rows.map((row) => {
           const pct = percentage(row.value);
           return (
             <li key={row.label} className="flex items-center gap-2.5">
-              <span className="w-16 shrink-0 text-xs text-ink-600">{row.label}</span>
-              <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-paper-100">
+              <span className="w-16 shrink-0 text-xs text-[#374151]">{row.label}</span>
+              <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#E5E7EB]">
                 <span
-                  className={`block h-full rounded-full ${row.label === 'Unknown' ? 'bg-paper-300' : 'bg-ink-300'}`}
+                  className={`block h-full rounded-full ${row.label === 'Unknown' ? 'bg-[#9CA3AF]' : 'bg-[#4B5563]'}`}
                   style={{ width: `${pct}%` }}
                 />
               </span>
-              <span className="tnum w-9 shrink-0 text-right text-2xs text-ink-400">{pct}%</span>
+              <span className="tnum w-9 shrink-0 text-right text-2xs text-[#6B7280]">{pct}%</span>
             </li>
           );
         })}

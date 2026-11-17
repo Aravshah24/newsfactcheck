@@ -44,8 +44,8 @@ export function ClaimInput({
       </label>
 
       <div
-        className={`mt-2 rounded-lg border bg-white transition focus-within:ring-2 focus-within:ring-ink-800 focus-within:ring-offset-2 focus-within:ring-offset-paper-50 ${
-          touched && invalid ? 'border-rose-400' : 'border-paper-300'
+        className={`mt-2 rounded-lg border bg-[#F9FAFB]/92 backdrop-blur-md transition focus-within:ring-2 focus-within:ring-[#1F2937] focus-within:ring-offset-2 focus-within:ring-offset-[#F3F4F6] ${
+          touched && invalid ? 'border-rose-400' : 'border-[#D1D5DB]'
         }`}
       >
         <textarea
@@ -59,17 +59,17 @@ export function ClaimInput({
           aria-invalid={touched && invalid}
           aria-describedby={touched && invalid ? errorId : undefined}
           placeholder="Paste a claim exactly as it was published."
-          className="w-full resize-y rounded-lg bg-transparent px-4 py-3.5 font-serif text-lg leading-relaxed text-ink-900 outline-none placeholder:font-sans placeholder:text-base placeholder:text-ink-300 disabled:opacity-60"
+          className="w-full resize-y rounded-t-lg bg-transparent px-4 py-3.5 font-serif text-lg leading-relaxed text-[#111827] outline-none placeholder:font-sans placeholder:text-base placeholder:text-[#6B7280] disabled:opacity-60"
         />
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-paper-200 px-4 py-2.5">
-          <p className={`tnum text-2xs ${tooLong ? 'font-semibold text-rose-600' : 'text-ink-400'}`}>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#D1D5DB] bg-[#E5E7EB]/50 rounded-b-lg px-4 py-2.5">
+          <p className={`tnum text-2xs ${tooLong ? 'font-semibold text-rose-600' : 'text-[#6B7280]'}`}>
             {tooLong ? `${claim.length - MAX_CLAIM_LENGTH} over the limit` : `${remaining} characters left`}
           </p>
           <button
             type="submit"
             disabled={busy || disabled || invalid}
-            className="inline-flex items-center gap-2 rounded-md bg-ink-900 px-4 py-2 text-sm font-semibold text-paper-50 transition hover:bg-ink-700 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex items-center gap-2 rounded-md bg-[#1F2937] px-4 py-2 text-sm font-semibold text-[#F9FAFB] transition hover:bg-[#111827] disabled:cursor-not-allowed disabled:opacity-40"
           >
             {busy ? 'Investigating…' : 'Investigate'}
             <svg
@@ -96,7 +96,7 @@ export function ClaimInput({
       ) : null}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="text-2xs uppercase tracking-[0.14em] text-ink-400">Try</span>
+        <span className="text-2xs uppercase tracking-[0.14em] text-[#6B7280]">Try</span>
         {EXAMPLES.map((example) => (
           <button
             key={example}
@@ -106,7 +106,7 @@ export function ClaimInput({
               setClaim(example);
               setTouched(false);
             }}
-            className="max-w-full truncate rounded-full border border-paper-300 bg-white px-3 py-1 text-left text-xs text-ink-600 transition hover:border-ink-400 hover:text-ink-900 disabled:opacity-50"
+            className="max-w-full truncate rounded-full border border-[#D1D5DB] bg-[#F9FAFB]/92 backdrop-blur-md px-3 py-1 text-left text-xs text-[#4B5563] transition hover:border-[#4B5563] hover:text-[#111827] disabled:opacity-50"
           >
             {example}
           </button>

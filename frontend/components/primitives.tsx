@@ -17,11 +17,21 @@ export function Section({
 }) {
   return (
     <section id={id} className="scroll-mt-24">
-      <header className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#6B7280]">{title}</h2>
-        {aside ? <div className="text-xs text-[#6B7280]">{aside}</div> : null}
+      <header className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+        <h2 className="inline-flex items-center rounded-md border border-[#D1D5DB] bg-[#F3F4F6]/95 px-2.5 py-1 text-xs font-bold uppercase tracking-[0.14em] text-[#1F2937] shadow-sm backdrop-blur-md">
+          {title}
+        </h2>
+        {aside ? (
+          <div className="rounded-md border border-[#D1D5DB] bg-[#F3F4F6]/95 px-2.5 py-1 text-xs font-medium text-[#4B5563] shadow-sm backdrop-blur-md">
+            {aside}
+          </div>
+        ) : null}
       </header>
-      {hint ? <p className="mb-4 max-w-2xl text-sm leading-relaxed text-[#4B5563]">{hint}</p> : null}
+      {hint ? (
+        <p className="mb-4 max-w-2xl rounded-lg border border-[#D1D5DB] bg-[#F3F4F6]/95 px-3.5 py-2 text-xs leading-relaxed text-[#4B5563] shadow-sm backdrop-blur-md">
+          {hint}
+        </p>
+      ) : null}
       {children}
     </section>
   );
@@ -41,7 +51,7 @@ export function VerdictChip({ descriptor, size = 'md' }: { descriptor: Descripto
 
   return (
     <span
-      className={`inline-flex shrink-0 items-center rounded-full border font-semibold ${descriptor.chip} ${sizing}`}
+      className={`inline-flex shrink-0 items-center rounded-full border font-semibold ${descriptor.chip} ${sizing} shadow-sm`}
     >
       <span aria-hidden="true" className="leading-none">
         {descriptor.glyph}
@@ -51,10 +61,12 @@ export function VerdictChip({ descriptor, size = 'md' }: { descriptor: Descripto
   );
 }
 
-/** Bordered content panel. Frosted surface so the newspaper background subtly shows through. */
+/** Bordered content panel. High-opacity frosted surface so content is completely legible. */
 export function Panel({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-lg border border-[#D1D5DB] bg-[#F9FAFB]/92 backdrop-blur-md ${className}`}>{children}</div>
+    <div className={`rounded-xl border border-[#D1D5DB] bg-[#F9FAFB]/95 shadow-md backdrop-blur-md ${className}`}>
+      {children}
+    </div>
   );
 }
 
@@ -70,7 +82,7 @@ export function Stat({ label, value, note }: { label: string; value: ReactNode; 
 
 export function EmptyNote({ children }: { children: ReactNode }) {
   return (
-    <p className="rounded-md border border-dashed border-[#D1D5DB] bg-[#E5E7EB]/80 backdrop-blur-md px-4 py-3 text-sm text-[#4B5563]">
+    <p className="rounded-lg border border-dashed border-[#D1D5DB] bg-[#F9FAFB]/95 px-4 py-3 text-sm text-[#4B5563] shadow-sm backdrop-blur-md">
       {children}
     </p>
   );

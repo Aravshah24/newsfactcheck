@@ -14,9 +14,9 @@ export function VerdictSummary({ result }: { result: InvestigationStateResponse 
   const hasVerdict = Boolean(result.overall_verdict);
 
   return (
-    <Panel className="overflow-hidden">
+    <Panel className="overflow-hidden shadow-md">
       <div className="grid gap-px bg-[#D1D5DB] sm:grid-cols-[1fr_auto]">
-        <div className="bg-[#F9FAFB]/92 backdrop-blur-md px-5 py-5 sm:px-7 sm:py-6">
+        <div className="bg-[#F9FAFB]/95 backdrop-blur-md px-5 py-5 sm:px-7 sm:py-6">
           <p className="label-micro">Verdict</p>
           <div className="mt-2.5 flex flex-wrap items-center gap-3">
             <h2 className={`font-serif text-3xl font-semibold leading-tight tracking-tight ${verdict.accent}`}>
@@ -30,13 +30,13 @@ export function VerdictSummary({ result }: { result: InvestigationStateResponse 
         </div>
 
         <dl className="grid grid-cols-2 gap-px bg-[#D1D5DB] sm:w-56 sm:grid-cols-1">
-          <div className="bg-[#F9FAFB]/92 backdrop-blur-md px-5 py-3.5 sm:px-6">
+          <div className="bg-[#F9FAFB]/95 backdrop-blur-md px-5 py-3.5 sm:px-6">
             <dt className="label-micro">Confidence</dt>
             <dd className="mt-1 text-2xl font-semibold tnum text-[#111827]">
               {formatConfidence(result.overall_confidence)}
             </dd>
           </div>
-          <div className="bg-[#F9FAFB]/92 backdrop-blur-md px-5 py-3.5 sm:px-6">
+          <div className="bg-[#F9FAFB]/95 backdrop-blur-md px-5 py-3.5 sm:px-6">
             <dt className="label-micro">Status</dt>
             <dd className="mt-1 text-sm font-medium leading-snug text-[#374151]">
               {claimStatusLabel(result.status)}
@@ -46,7 +46,7 @@ export function VerdictSummary({ result }: { result: InvestigationStateResponse 
       </div>
 
       {primaryStatusLabel(result.primary_evidence_status).label !== 'Unknown' ? (
-        <div className="border-t border-[#D1D5DB] bg-[#E5E7EB]/60 px-5 py-3 sm:px-7">
+        <div className="border-t border-[#D1D5DB] bg-[#E5E7EB]/90 px-5 py-3 sm:px-7">
           <p className="text-xs leading-relaxed text-[#4B5563]">
             <span className="font-semibold text-[#111827]">{primary.label}.</span> {primary.note}
           </p>
@@ -54,7 +54,7 @@ export function VerdictSummary({ result }: { result: InvestigationStateResponse 
       ) : null}
 
       {!hasVerdict ? (
-        <div className="border-t border-[#D1D5DB] px-5 py-4 sm:px-7">
+        <div className="border-t border-[#D1D5DB] px-5 py-4 sm:px-7 bg-[#F9FAFB]/95">
           <EmptyNote>
             This investigation stored no overall verdict. The evidence sections below show what was
             retrieved, but nothing here should be read as a conclusion.
@@ -79,13 +79,13 @@ function ReasoningNotice({ result }: { result: InvestigationStateResponse }) {
   if (rules.length === 0) return null;
 
   return (
-    <div className="border-t border-[#D1D5DB] px-5 py-3.5 sm:px-7">
+    <div className="border-t border-[#D1D5DB] bg-[#F9FAFB]/95 px-5 py-3.5 sm:px-7">
       <p className="label-micro">Constraints applied</p>
       <ul className="mt-2 flex flex-wrap gap-1.5">
         {rules.map((rule) => (
           <li
             key={rule}
-            className="rounded border border-[#D1D5DB] bg-[#E5E7EB] px-2 py-0.5 text-2xs font-medium text-[#4B5563]"
+            className="rounded border border-[#D1D5DB] bg-[#E5E7EB] px-2 py-0.5 text-2xs font-semibold text-[#1F2937]"
           >
             {rule.replace(/_/g, ' ')}
           </li>
@@ -128,17 +128,17 @@ function SubclaimCard({
   const display = subclaimVerdictDescriptor(item.verdict);
 
   return (
-    <li className="rounded-lg border border-[#D1D5DB] bg-[#F9FAFB]/92 backdrop-blur-md">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#D1D5DB] px-4 py-3.5 sm:px-5">
+    <li className="rounded-xl border border-[#D1D5DB] bg-[#F9FAFB]/95 shadow-md backdrop-blur-md overflow-hidden">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#D1D5DB] bg-[#F3F4F6]/80 px-4 py-3.5 sm:px-5">
         <div className="min-w-0 flex-1">
           <p className="label-micro">Subclaim</p>
-          <p className="mt-1.5 font-serif text-base leading-relaxed text-[#111827]">
+          <p className="mt-1.5 font-serif text-base font-medium leading-relaxed text-[#111827]">
             {item.subclaim_text ?? 'Untitled subclaim'}
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
           <VerdictChip descriptor={display} size="sm" />
-          <span className="tnum text-2xs text-[#6B7280]">{formatConfidence(item.confidence)} confidence</span>
+          <span className="tnum text-2xs font-medium text-[#6B7280]">{formatConfidence(item.confidence)} confidence</span>
         </div>
       </div>
 

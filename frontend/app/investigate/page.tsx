@@ -196,10 +196,9 @@ export default function Home() {
 
       <main className="mx-auto w-full max-w-[86rem] px-5 pb-24 pt-10 sm:px-8 sm:pt-14 bg-transparent">
         {phase !== 'done' || !result ? (
-          <section className="mx-auto max-w-3xl relative">
-            <div className="pointer-events-none absolute -inset-x-8 -inset-y-6 -z-10 rounded-3xl bg-[#F3F4F6]/80 blur-2xl" aria-hidden="true" />
+          <section className="mx-auto max-w-3xl space-y-8">
             <Intro phase={phase} />
-            <div className="mt-8">
+            <div>
               <ClaimInput onSubmit={handleSubmit} busy={phase === 'running'} />
             </div>
 
@@ -258,7 +257,7 @@ export default function Home() {
         ) : null}
       </main>
 
-      <footer className="border-t border-[#D1D5DB] bg-[#F3F4F6]/80 px-5 py-8 sm:px-8">
+      <footer className="border-t border-[#D1D5DB] bg-[#F3F4F6]/95 backdrop-blur-md px-5 py-8 sm:px-8">
         <div className="mx-auto flex max-w-[86rem] flex-wrap items-center justify-between gap-3 text-2xs text-[#6B7280]">
           <p>
             Verdicts are research aids, not calibrated truth. Confidence is capped by independent
@@ -273,7 +272,7 @@ export default function Home() {
 
 function SiteHeader({ health, healthError }: { health: ServiceHealth | null; healthError: boolean }) {
   return (
-    <header className="border-b border-[#D1D5DB] bg-[#F3F4F6]/80 backdrop-blur-md">
+    <header className="border-b border-[#D1D5DB] bg-[#F3F4F6]/95 backdrop-blur-md sticky top-0 z-10">
       <div className="mx-auto flex max-w-[86rem] flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-8">
         <Link href="/" className="flex items-center gap-3" aria-label="FactTrace home">
           <LogoMark />
@@ -330,13 +329,13 @@ function StatusPill({
     positive: 'border-emerald-300 bg-emerald-50 text-emerald-800',
     negative: 'border-rose-300 bg-rose-50 text-rose-800',
     caution: 'border-amber-300 bg-amber-50 text-amber-800',
-    neutral: 'border-[#D1D5DB] bg-[#F9FAFB]/92 text-[#4B5563]',
+    neutral: 'border-[#D1D5DB] bg-[#F9FAFB]/95 text-[#4B5563]',
   } as const;
 
   return (
     <span
       title={title}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-2xs font-medium ${tones[tone]}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-2xs font-medium shadow-sm ${tones[tone]}`}
     >
       <span aria-hidden="true">{glyph}</span>
       <span className="max-w-[16rem] truncate">{label}</span>
@@ -347,7 +346,7 @@ function StatusPill({
 function Intro({ phase }: { phase: Phase }) {
   if (phase === 'running') return null;
   return (
-    <div>
+    <div className="rounded-2xl border border-[#D1D5DB] bg-[#F3F4F6]/95 p-6 md:p-8 shadow-md backdrop-blur-md">
       <p className="label-micro">Investigate a claim</p>
       <h1 className="mt-3 max-w-2xl font-serif text-3xl font-semibold leading-[1.15] tracking-tight text-[#111827] sm:text-[2.5rem]">
         Trace the evidence.
@@ -371,11 +370,11 @@ function OpenExisting({ onSubmit }: { onSubmit: (event: FormEvent<HTMLFormElemen
         min={1}
         inputMode="numeric"
         placeholder="60"
-        className="tnum w-24 rounded-md border border-[#D1D5DB] bg-[#F9FAFB]/92 px-2.5 py-1.5 text-sm text-[#111827] outline-none focus-visible:ring-2 focus-visible:ring-[#1F2937]"
+        className="tnum w-24 rounded-md border border-[#D1D5DB] bg-[#F9FAFB]/95 px-2.5 py-1.5 text-sm text-[#111827] outline-none focus-visible:ring-2 focus-visible:ring-[#1F2937]"
       />
       <button
         type="submit"
-        className="rounded-md border border-[#D1D5DB] bg-[#F9FAFB]/92 px-3 py-1.5 text-sm font-medium text-[#374151] transition hover:border-[#4B5563] hover:text-[#111827]"
+        className="rounded-md border border-[#D1D5DB] bg-[#F9FAFB]/95 px-3 py-1.5 text-sm font-medium text-[#374151] transition hover:border-[#4B5563] hover:text-[#111827]"
       >
         Open
       </button>
@@ -403,7 +402,7 @@ function RecentInvestigations({
   onSubmitId: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <div className="space-y-4 border-t border-[#D1D5DB] pt-6">
+    <div className="space-y-4 rounded-2xl border border-[#D1D5DB] bg-[#F3F4F6]/95 p-6 shadow-md backdrop-blur-md">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="label-micro">Stored investigations</p>
@@ -427,7 +426,7 @@ function RecentInvestigations({
       ) : items.length === 0 ? (
         <p className="text-xs text-[#6B7280]">No stored investigations yet.</p>
       ) : (
-        <ul className="divide-y divide-[#D1D5DB] overflow-hidden rounded-lg border border-[#D1D5DB] bg-[#F9FAFB]/92 backdrop-blur-md">
+        <ul className="divide-y divide-[#D1D5DB] overflow-hidden rounded-xl border border-[#D1D5DB] bg-[#F9FAFB]/95 shadow-sm">
           {items.map((item) => {
             const descriptor = overallVerdictDescriptor(item.overall_verdict);
             return (
@@ -437,7 +436,7 @@ function RecentInvestigations({
                   onClick={() => onOpen(item.claim_id)}
                   className="min-w-0 flex-1 text-left"
                 >
-                  <span className="block truncate text-sm text-[#111827]">{item.claim_text}</span>
+                  <span className="block truncate text-sm font-medium text-[#111827]">{item.claim_text}</span>
                   <span className="tnum mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs uppercase tracking-[0.12em] text-[#6B7280]">
                     <span>#{item.claim_id}</span>
                     <span className={`rounded-full border px-1.5 py-0.5 normal-case tracking-normal ${descriptor.chip}`}>
@@ -479,8 +478,8 @@ function ResultsView({
   const independence = result.source_independence;
 
   return (
-    <div className="animate-fade-rise space-y-14">
-      <section>
+    <div className="animate-fade-rise space-y-12">
+      <section className="rounded-2xl border border-[#D1D5DB] bg-[#F3F4F6]/95 p-6 md:p-8 shadow-md backdrop-blur-md">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <p className="label-micro">Claim under investigation</p>
@@ -495,7 +494,7 @@ function ResultsView({
             <button
               type="button"
               onClick={() => onRerun(result.claim_text)}
-              className="rounded-md border border-[#D1D5DB] bg-[#F9FAFB]/92 backdrop-blur-md px-3 py-1.5 text-sm font-medium text-[#374151] transition hover:border-[#4B5563] hover:text-[#111827]"
+              className="rounded-md border border-[#D1D5DB] bg-[#F9FAFB]/95 px-3 py-1.5 text-sm font-medium text-[#374151] transition hover:border-[#4B5563] hover:text-[#111827]"
             >
               Re-run
             </button>
@@ -514,8 +513,8 @@ function ResultsView({
         </div>
       </section>
 
-      <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-10 xl:gap-14">
-        <div className="min-w-0 space-y-12">
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-10 xl:gap-12">
+        <div className="min-w-0 space-y-10">
           <Section
             id="verification"
             title="Subclaim verification"
@@ -546,7 +545,7 @@ function ResultsView({
           </Section>
         </div>
 
-        <aside className="min-w-0 space-y-10">
+        <aside className="min-w-0 space-y-8">
           <Section id="independence" title="Source independence">
             <SourceIndependence data={independence} />
           </Section>
@@ -560,7 +559,7 @@ function ResultsView({
           </Section>
 
           <Section id="run-details" title="Run details">
-            <div className="rounded-lg border border-[#D1D5DB] bg-[#F9FAFB]/92 backdrop-blur-md p-4">
+            <div className="rounded-xl border border-[#D1D5DB] bg-[#F9FAFB]/95 p-4 shadow-md backdrop-blur-md">
               <dl className="space-y-3">
                 {stats ? (
                   <>

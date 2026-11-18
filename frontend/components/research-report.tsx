@@ -62,12 +62,12 @@ export function ResearchReport({
   const sources = uniqueSources(evidence);
 
   return (
-    <Panel className="p-5 sm:p-7">
+    <Panel className="p-6 sm:p-8 shadow-md">
       <article className="max-w-2xl">
         {blocks.map((block, index) => (
           <section key={index} className={index > 0 ? 'mt-6' : undefined}>
             {block.heading ? (
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#6B7280]">
+              <h3 className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-[#6B7280]">
                 {block.heading}
               </h3>
             ) : null}
@@ -79,14 +79,14 @@ export function ResearchReport({
       {sources.length > 0 ? (
         <div className="mt-7 border-t border-[#D1D5DB] pt-5">
           <p className="label-micro mb-3">Sources behind this report</p>
-          <ul className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
+          <ul className="grid gap-2 sm:grid-cols-2">
             {sources.slice(0, 24).map((source) => (
               <li key={source.url} className="min-w-0 text-sm">
                 <a
                   href={source.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-baseline gap-1.5 text-[#4B5563] transition hover:text-[#111827]"
+                  className="flex items-baseline gap-1.5 rounded-lg border border-[#D1D5DB] bg-[#F3F4F6]/80 px-2.5 py-1 text-[#374151] transition hover:bg-white hover:text-[#111827] shadow-sm"
                 >
                   <span aria-hidden="true" className="shrink-0 text-[#9CA3AF]">
                     ↗

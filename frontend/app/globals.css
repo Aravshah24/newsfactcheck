@@ -5,6 +5,15 @@
 @layer base {
   :root {
     color-scheme: light;
+    --canvas: #F3F4F6;
+    --surface-card: rgba(249, 250, 251, 0.88);
+    --surface-muted: #E5E7EB;
+    --border-divider: #D1D5DB;
+    --text-primary: #111827;
+    --text-secondary: #4B5563;
+    --text-muted: #6B7280;
+    --btn-primary: #1F2937;
+    --btn-primary-hover: #111827;
   }
 
   html {
@@ -12,17 +21,17 @@
   }
 
   body {
-    @apply bg-paper-50 text-ink-800 antialiased;
+    @apply bg-[#F3F4F6] text-[#111827] antialiased;
     font-feature-settings: 'kern', 'liga';
   }
 
   /* Visible, consistent focus ring for every interactive element. */
   :where(a, button, input, textarea, select, [tabindex]):focus-visible {
-    @apply outline-none ring-2 ring-ink-800 ring-offset-2 ring-offset-paper-50;
+    @apply outline-none ring-2 ring-[#1F2937] ring-offset-2 ring-offset-[#F3F4F6];
   }
 
   ::selection {
-    @apply bg-ink-800 text-paper-50;
+    @apply bg-[#111827] text-[#F9FAFB];
   }
 }
 
@@ -33,12 +42,12 @@
   }
 
   .label-micro {
-    @apply text-2xs font-semibold uppercase tracking-[0.14em] text-ink-400;
+    @apply text-2xs font-semibold uppercase tracking-[0.14em] text-[#6B7280];
   }
 
   /* The long report body is prose, not data: give it a comfortable measure. */
   .report-prose {
-    @apply whitespace-pre-wrap break-words text-[0.95rem] leading-[1.75] text-ink-700;
+    @apply whitespace-pre-wrap break-words text-[0.95rem] leading-[1.75] text-[#374151];
   }
 }
 

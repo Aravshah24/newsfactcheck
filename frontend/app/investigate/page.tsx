@@ -98,7 +98,7 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const run = useCallback(async (claim: string) => {
+  async function run(claim: string) {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -110,8 +110,6 @@ export default function Home() {
     setRetry(() => () => void run(claim));
 
     try {
-      // The backend runs the pipeline synchronously, so this resolves only when
-      // the investigation is finished and persisted.
       const created = await createInvestigation(claim, controller.signal);
       const detail = await getInvestigation(created.claim_id, controller.signal);
       setResult(detail);
@@ -126,28 +124,32 @@ export default function Home() {
         abortRef.current = null;
       }
     }
-  }, [loadRecent]);
+  }
 
   function handleSubmit(claim: string) {
     void run(claim);
   }
 
   async function handleDelete(claimId: number) {
+    const controller = new AbortController();
     try {
-      await deleteInvestigation(claimId);
-      setRecent((previous) => previous.filter((item) => item.claim_id !== claimId));
-      setRecentTotal((total) => Math.max(0, total - 1));
-    } catch {
-      // A failed delete should not leave the list silently stale.
-      loadRecent();
+      await deleteInvestigation(claimId, controller.signal);
+      if (result?.claim_id === claimId) {
+        reset();
+      } else {
+        loadRecent();
+      }
+    } catch (caught) {
+      setError(caught);
+      setPhase('error');
     }
   }
 
   function handleOpenById(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const value = String(form.get('claimId') ?? '').trim();
-    if (!/^\d+$/.test(value)) return;
+    const data = new FormData(event.currentTarget);
+    const value = String(data.get('claimId') ?? '').trim();
+    if (!value || !/^\d+$/.test(value)) return;
     void runOpen(Number(value));
   }
 
@@ -189,14 +191,14 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-transparent">
       <SiteHeader health={health} healthError={healthError} />
 
-      <main className="mx-auto w-full max-w-[86rem] px-5 pb-24 pt-10 sm:px-8 sm:pt-14">
+      <main className="mx-auto w-full max-w-[86rem] px-5 pb-24 pt-10 sm:px-8 sm:pt-14 bg-transparent">
         {phase !== 'done' || !result ? (
-          <section className={phase === 'running' ? 'mx-auto max-w-3xl' : 'mx-auto max-w-3xl'}>
+          <section className="mx-auto max-w-3xl space-y-8">
             <Intro phase={phase} />
-            <div className="mt-8">
+            <div>
               <ClaimInput onSubmit={handleSubmit} busy={phase === 'running'} />
             </div>
 
@@ -255,8 +257,8 @@ export default function Home() {
         ) : null}
       </main>
 
-      <footer className="border-t border-paper-200 px-5 py-8 sm:px-8">
-        <div className="mx-auto flex max-w-[86rem] flex-wrap items-center justify-between gap-3 text-2xs text-ink-400">
+      <footer className="border-t border-[#D1D5DB] bg-[#F3F4F6]/95 backdrop-blur-md px-5 py-8 sm:px-8">
+        <div className="mx-auto flex max-w-[86rem] flex-wrap items-center justify-between gap-3 text-2xs text-[#6B7280]">
           <p>
             Verdicts are research aids, not calibrated truth. Confidence is capped by independent
             source groups, not by how many articles were retrieved.
@@ -270,15 +272,15 @@ export default function Home() {
 
 function SiteHeader({ health, healthError }: { health: ServiceHealth | null; healthError: boolean }) {
   return (
-    <header className="border-b border-paper-200 bg-paper-100/60">
+    <header className="border-b border-[#D1D5DB] bg-[#F3F4F6]/95 backdrop-blur-md sticky top-0 z-10">
       <div className="mx-auto flex max-w-[86rem] flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-8">
         <Link href="/" className="flex items-center gap-3" aria-label="FactTrace home">
           <LogoMark />
           <div>
-            <p className="font-serif text-base font-semibold leading-none tracking-tight text-ink-900">
+            <p className="font-serif text-base font-semibold leading-none tracking-tight text-[#111827]">
               FactTrace
             </p>
-            <p className="mt-1 text-2xs uppercase tracking-[0.14em] text-ink-400">
+            <p className="mt-1 text-2xs uppercase tracking-[0.14em] text-[#6B7280]">
               Evidence-backed claim investigation
             </p>
           </div>
@@ -289,8 +291,6 @@ function SiteHeader({ health, healthError }: { health: ServiceHealth | null; hea
     </header>
   );
 }
-
-
 
 function ServiceIndicator({ health, healthError }: { health: ServiceHealth | null; healthError: boolean }) {
   if (healthError) {
@@ -329,13 +329,13 @@ function StatusPill({
     positive: 'border-emerald-300 bg-emerald-50 text-emerald-800',
     negative: 'border-rose-300 bg-rose-50 text-rose-800',
     caution: 'border-amber-300 bg-amber-50 text-amber-800',
-    neutral: 'border-paper-300 bg-white text-ink-500',
+    neutral: 'border-[#D1D5DB] bg-[#F9FAFB]/95 text-[#4B5563]',
   } as const;
 
   return (
     <span
       title={title}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-2xs font-medium ${tones[tone]}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-2xs font-medium shadow-sm ${tones[tone]}`}
     >
       <span aria-hidden="true">{glyph}</span>
       <span className="max-w-[16rem] truncate">{label}</span>
@@ -346,9 +346,9 @@ function StatusPill({
 function Intro({ phase }: { phase: Phase }) {
   if (phase === 'running') return null;
   return (
-    <div>
+    <div className="rounded-2xl border border-[#D1D5DB] bg-[#F3F4F6]/95 p-6 md:p-8 shadow-md backdrop-blur-md">
       <p className="label-micro">Investigate a claim</p>
-      <h1 className="mt-3 max-w-2xl font-serif text-3xl font-semibold leading-[1.15] tracking-tight text-ink-900 sm:text-[2.5rem]">
+      <h1 className="mt-3 max-w-2xl font-serif text-3xl font-semibold leading-[1.15] tracking-tight text-[#111827] sm:text-[2.5rem]">
         Trace the evidence.
         <br />
         See what the sources actually support.
@@ -360,7 +360,7 @@ function Intro({ phase }: { phase: Phase }) {
 function OpenExisting({ onSubmit }: { onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
   return (
     <form onSubmit={onSubmit} className="flex flex-wrap items-center gap-3">
-      <label htmlFor="claimId" className="text-xs text-ink-400">
+      <label htmlFor="claimId" className="text-xs text-[#6B7280]">
         Reopen by id
       </label>
       <input
@@ -370,11 +370,11 @@ function OpenExisting({ onSubmit }: { onSubmit: (event: FormEvent<HTMLFormElemen
         min={1}
         inputMode="numeric"
         placeholder="60"
-        className="tnum w-24 rounded-md border border-paper-300 bg-white px-2.5 py-1.5 text-sm text-ink-800 outline-none focus-visible:ring-2 focus-visible:ring-ink-800"
+        className="tnum w-24 rounded-md border border-[#D1D5DB] bg-[#F9FAFB]/95 px-2.5 py-1.5 text-sm text-[#111827] outline-none focus-visible:ring-2 focus-visible:ring-[#1F2937]"
       />
       <button
         type="submit"
-        className="rounded-md border border-paper-300 bg-white px-3 py-1.5 text-sm font-medium text-ink-700 transition hover:border-ink-400"
+        className="rounded-md border border-[#D1D5DB] bg-[#F9FAFB]/95 px-3 py-1.5 text-sm font-medium text-[#374151] transition hover:border-[#4B5563] hover:text-[#111827]"
       >
         Open
       </button>
@@ -402,11 +402,11 @@ function RecentInvestigations({
   onSubmitId: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <div className="space-y-4 border-t border-paper-200 pt-6">
+    <div className="space-y-4 rounded-2xl border border-[#D1D5DB] bg-[#F3F4F6]/95 p-6 shadow-md backdrop-blur-md">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="label-micro">Stored investigations</p>
-          <p className="mt-1 text-xs text-ink-400">
+          <p className="mt-1 text-xs text-[#6B7280]">
             {total > 0 ? `${total} saved. Reopen or remove a previous run.` : 'Reopen a previous run.'}
           </p>
         </div>
@@ -414,19 +414,19 @@ function RecentInvestigations({
       </div>
 
       {loading && items.length === 0 ? (
-        <p className="text-xs text-ink-400">Loading stored investigations…</p>
+        <p className="text-xs text-[#6B7280]">Loading stored investigations…</p>
       ) : error ? (
         <button
           type="button"
           onClick={onRefresh}
-          className="text-xs font-medium text-ink-600 underline underline-offset-2"
+          className="text-xs font-medium text-[#4B5563] underline underline-offset-2 hover:text-[#111827]"
         >
           Could not load stored investigations. Retry.
         </button>
       ) : items.length === 0 ? (
-        <p className="text-xs text-ink-400">No stored investigations yet.</p>
+        <p className="text-xs text-[#6B7280]">No stored investigations yet.</p>
       ) : (
-        <ul className="divide-y divide-paper-200 overflow-hidden rounded-lg border border-paper-200 bg-white">
+        <ul className="divide-y divide-[#D1D5DB] overflow-hidden rounded-xl border border-[#D1D5DB] bg-[#F9FAFB]/95 shadow-sm">
           {items.map((item) => {
             const descriptor = overallVerdictDescriptor(item.overall_verdict);
             return (
@@ -436,8 +436,8 @@ function RecentInvestigations({
                   onClick={() => onOpen(item.claim_id)}
                   className="min-w-0 flex-1 text-left"
                 >
-                  <span className="block truncate text-sm text-ink-800">{item.claim_text}</span>
-                  <span className="tnum mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs uppercase tracking-[0.12em] text-ink-400">
+                  <span className="block truncate text-sm font-medium text-[#111827]">{item.claim_text}</span>
+                  <span className="tnum mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs uppercase tracking-[0.12em] text-[#6B7280]">
                     <span>#{item.claim_id}</span>
                     <span className={`rounded-full border px-1.5 py-0.5 normal-case tracking-normal ${descriptor.chip}`}>
                       {descriptor.label}
@@ -452,7 +452,7 @@ function RecentInvestigations({
                 <button
                   type="button"
                   onClick={() => onDelete(item.claim_id)}
-                  className="shrink-0 rounded-md border border-paper-300 bg-white px-2.5 py-1 text-xs font-medium text-ink-500 transition hover:border-rose-300 hover:text-rose-700"
+                  className="shrink-0 rounded-md border border-[#D1D5DB] bg-[#F9FAFB] px-2.5 py-1 text-xs font-medium text-[#6B7280] transition hover:border-rose-300 hover:text-rose-700"
                 >
                   Delete
                 </button>
@@ -478,15 +478,15 @@ function ResultsView({
   const independence = result.source_independence;
 
   return (
-    <div className="animate-fade-rise space-y-14">
-      <section>
+    <div className="animate-fade-rise space-y-12">
+      <section className="rounded-2xl border border-[#D1D5DB] bg-[#F3F4F6]/95 p-6 md:p-8 shadow-md backdrop-blur-md">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <p className="label-micro">Claim under investigation</p>
-            <h1 className="mt-2.5 max-w-3xl font-serif text-2xl font-semibold leading-snug tracking-tight text-ink-900 sm:text-[1.75rem]">
+            <h1 className="mt-2.5 max-w-3xl font-serif text-2xl font-semibold leading-snug tracking-tight text-[#111827] sm:text-[1.75rem]">
               {result.claim_text}
             </h1>
-            <p className="tnum mt-3 text-2xs uppercase tracking-[0.12em] text-ink-400">
+            <p className="tnum mt-3 text-2xs uppercase tracking-[0.12em] text-[#6B7280]">
               Investigation #{result.claim_id}
             </p>
           </div>
@@ -494,14 +494,14 @@ function ResultsView({
             <button
               type="button"
               onClick={() => onRerun(result.claim_text)}
-              className="rounded-md border border-paper-300 bg-white px-3 py-1.5 text-sm font-medium text-ink-700 transition hover:border-ink-400"
+              className="rounded-md border border-[#D1D5DB] bg-[#F9FAFB]/95 px-3 py-1.5 text-sm font-medium text-[#374151] transition hover:border-[#4B5563] hover:text-[#111827]"
             >
               Re-run
             </button>
             <button
               type="button"
               onClick={onReset}
-              className="rounded-md bg-ink-900 px-3 py-1.5 text-sm font-semibold text-paper-50 transition hover:bg-ink-700"
+              className="rounded-md bg-[#1F2937] px-3 py-1.5 text-sm font-semibold text-[#F9FAFB] transition hover:bg-[#111827]"
             >
               New claim
             </button>
@@ -513,8 +513,8 @@ function ResultsView({
         </div>
       </section>
 
-      <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-10 xl:gap-14">
-        <div className="min-w-0 space-y-12">
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-10 xl:gap-12">
+        <div className="min-w-0 space-y-10">
           <Section
             id="verification"
             title="Subclaim verification"
@@ -545,7 +545,7 @@ function ResultsView({
           </Section>
         </div>
 
-        <aside className="min-w-0 space-y-10">
+        <aside className="min-w-0 space-y-8">
           <Section id="independence" title="Source independence">
             <SourceIndependence data={independence} />
           </Section>
@@ -559,7 +559,7 @@ function ResultsView({
           </Section>
 
           <Section id="run-details" title="Run details">
-            <div className="rounded-lg border border-paper-200 bg-white p-4">
+            <div className="rounded-xl border border-[#D1D5DB] bg-[#F9FAFB]/95 p-4 shadow-md backdrop-blur-md">
               <dl className="space-y-3">
                 {stats ? (
                   <>
@@ -584,13 +584,13 @@ function ResultsView({
               </dl>
 
               {!result.llm_available ? (
-                <div className="mt-4 border-t border-paper-200 pt-3.5">
-                  <p className="text-xs leading-relaxed text-ink-500">
+                <div className="mt-4 border-t border-[#D1D5DB] pt-3.5">
+                  <p className="text-xs leading-relaxed text-[#4B5563]">
                     Without live reasoning the system cannot compare propositions, so it records
                     documents as non-probative rather than guessing.
                   </p>
                   {result.llm_status?.remediation ? (
-                    <p className="mt-1.5 text-2xs leading-relaxed text-ink-400">
+                    <p className="mt-1.5 text-2xs leading-relaxed text-[#6B7280]">
                       {result.llm_status.remediation}
                     </p>
                   ) : null}
@@ -598,11 +598,11 @@ function ResultsView({
               ) : null}
 
               {result.errors.length > 0 ? (
-                <div className="mt-4 border-t border-paper-200 pt-3.5">
+                <div className="mt-4 border-t border-[#D1D5DB] pt-3.5">
                   <p className="label-micro mb-1.5">Errors during run</p>
                   <ul className="space-y-1">
                     {result.errors.slice(0, 5).map((item, index) => (
-                      <li key={index} className="break-words text-2xs text-ink-500">
+                      <li key={index} className="break-words text-2xs text-[#4B5563]">
                         {item}
                       </li>
                     ))}
@@ -627,8 +627,8 @@ function ResultsView({
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-xs text-ink-500">{label}</dt>
-      <dd className="shrink-0 text-sm font-semibold text-ink-800">{children}</dd>
+      <dt className="text-xs text-[#6B7280]">{label}</dt>
+      <dd className="shrink-0 text-sm font-semibold text-[#111827]">{children}</dd>
     </div>
   );
 }

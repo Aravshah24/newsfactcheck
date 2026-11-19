@@ -87,10 +87,10 @@ export function EvidenceList({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div
-          className="flex flex-wrap items-center gap-1 rounded-xl border border-[#D1D5DB] bg-[#F9FAFB]/95 backdrop-blur-md p-1.5 shadow-md"
+          className="flex flex-wrap items-center gap-1 rounded-md border border-paper-300 bg-white p-1"
           role="group"
           aria-label="Filter evidence by stance"
         >
@@ -102,12 +102,12 @@ export function EvidenceList({
                 type="button"
                 onClick={() => setFilter(option.key)}
                 aria-pressed={active}
-                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
-                  active ? 'bg-[#1F2937] text-[#F9FAFB] shadow-sm' : 'text-[#4B5563] hover:bg-[#E5E7EB] hover:text-[#111827]'
+                className={`rounded px-2.5 py-1 text-xs font-medium transition ${
+                  active ? 'bg-ink-900 text-paper-50' : 'text-ink-500 hover:bg-paper-100 hover:text-ink-800'
                 }`}
               >
                 {option.label}
-                <span className={`tnum ml-1.5 ${active ? 'text-[#9CA3AF]' : 'text-[#6B7280]'}`}>
+                <span className={`tnum ml-1.5 ${active ? 'text-paper-300' : 'text-ink-300'}`}>
                   {counts[option.key]}
                 </span>
               </button>
@@ -116,15 +116,17 @@ export function EvidenceList({
         </div>
 
         {subclaims.length > 1 ? (
-          <label className="flex min-w-0 items-center gap-2 rounded-xl border border-[#D1D5DB] bg-[#F9FAFB]/95 px-3 py-1.5 text-xs text-[#4B5563] shadow-md backdrop-blur-md">
-            <span className="shrink-0 uppercase font-bold tracking-[0.1em] text-[#6B7280]">Subclaim</span>
+          <label className="flex min-w-0 items-center gap-2 text-xs text-ink-500">
+            <span className="shrink-0 uppercase tracking-[0.1em] text-ink-400">Subclaim</span>
             <select
               value={String(subclaimId)}
               onChange={(event) => {
                 const next = event.target.value;
                 setSubclaimId(next === 'all' ? 'all' : Number(next));
               }}
-              className="min-w-0 max-w-[11rem] truncate rounded-md border border-[#D1D5DB] bg-white px-2 py-1 text-xs text-[#111827] outline-none focus-visible:ring-2 focus-visible:ring-[#1F2937] sm:max-w-[16rem]"
+              // A select sizes itself to its widest option, so it is capped and
+              // allowed to shrink; otherwise a long subclaim overflows the page.
+              className="min-w-0 max-w-[11rem] truncate rounded-md border border-paper-300 bg-white px-2 py-1 text-xs text-ink-700 outline-none focus-visible:ring-2 focus-visible:ring-ink-800 sm:max-w-[16rem]"
             >
               <option value="all">All subclaims</option>
               {subclaims.map((sub, index) => (
@@ -146,14 +148,14 @@ export function EvidenceList({
               setFilter('all');
               setSubclaimId('all');
             }}
-            className="font-semibold text-[#111827] underline underline-offset-4"
+            className="font-medium text-ink-700 underline underline-offset-4"
           >
             Clear filters
           </button>
         </EmptyNote>
       ) : (
         <>
-          <ul className="space-y-3">
+          <ul className="space-y-2">
             {visible.map((item) => (
               <EvidenceCard
                 key={item.id ?? `${item.document_id}-${item.subclaim_id}`}
@@ -163,13 +165,11 @@ export function EvidenceList({
               />
             ))}
           </ul>
-          <div>
-            <p className="inline-block rounded-lg border border-[#D1D5DB] bg-[#F3F4F6]/95 px-3.5 py-1.5 text-xs text-[#4B5563] shadow-sm backdrop-blur-md">
-              Showing {visible.length} of {evidence.length}{' '}
-              {pluralise(evidence.length, 'assessed document')}. Only documents compared against the claim
-              on every specified dimension are counted as support.
-            </p>
-          </div>
+          <p className="text-xs text-ink-400">
+            Showing {visible.length} of {evidence.length}{' '}
+            {pluralise(evidence.length, 'assessed document')}. Only documents compared against the claim
+            on every specified dimension are counted as support.
+          </p>
         </>
       )}
     </div>
@@ -191,19 +191,19 @@ function EvidenceCard({
   const hasUrl = Boolean(item.url && /^https?:\/\//i.test(item.url));
 
   return (
-    <li className="rounded-xl border border-[#D1D5DB] bg-[#F9FAFB]/95 shadow-md backdrop-blur-md overflow-hidden">
+    <li className="rounded-lg border border-paper-200 bg-white">
       <div className="flex">
         {/* Stance rail: the glyph beside it carries the same meaning as the colour. */}
         <span
           aria-hidden="true"
-          className={`w-1.5 shrink-0 ${
+          className={`w-1 shrink-0 rounded-l-lg ${
             item.stance === 'supports'
               ? 'bg-emerald-500'
               : item.stance === 'contradicts'
                 ? 'bg-rose-500'
                 : item.stance === 'context'
                   ? 'bg-amber-400'
-                  : 'bg-[#D1D5DB]'
+                  : 'bg-paper-300'
           }`}
         />
 
@@ -213,29 +213,29 @@ function EvidenceCard({
               {hasUrl ? (
                 <ExternalLink
                   href={item.url as string}
-                  className="break-words font-serif text-base font-semibold leading-snug no-underline hover:underline"
+                  className="break-words font-serif text-base font-medium leading-snug no-underline hover:underline"
                 >
-                  <span className="hover:underline text-[#111827]">{title || domain || 'Untitled source'}</span>
+                  <span className="hover:underline">{title || domain || 'Untitled source'}</span>
                 </ExternalLink>
               ) : (
-                <p className="break-words font-serif text-base font-semibold leading-snug text-[#111827]">
+                <p className="break-words font-serif text-base font-medium leading-snug text-ink-900">
                   {title || 'Untitled source'}
                 </p>
               )}
 
-              <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 break-words text-xs text-[#4B5563]">
-                <span className="font-semibold text-[#111827]">{item.publisher?.trim() || 'Unknown publisher'}</span>
-                {domain ? <span className="text-[#9CA3AF]">·</span> : null}
+              <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 break-words text-xs text-ink-500">
+                <span className="font-medium text-ink-600">{item.publisher?.trim() || 'Unknown publisher'}</span>
+                {domain ? <span className="text-ink-300">·</span> : null}
                 {domain ? <span>{domain}</span> : null}
                 {item.published_at ? (
                   <>
-                    <span className="text-[#9CA3AF]">·</span>
+                    <span className="text-ink-300">·</span>
                     <time dateTime={item.published_at}>{formatPublished(item.published_at)}</time>
                   </>
                 ) : null}
                 {item.retrieval_channel ? (
                   <>
-                    <span className="text-[#9CA3AF]">·</span>
+                    <span className="text-ink-300">·</span>
                     <span>via {titleCase(item.retrieval_channel)}</span>
                   </>
                 ) : null}
@@ -244,58 +244,58 @@ function EvidenceCard({
 
             <div className="flex shrink-0 flex-col items-end gap-1.5">
               <VerdictChip descriptor={stance} size="sm" />
-              <span className="tnum text-2xs font-semibold text-[#6B7280]">{formatConfidence(item.confidence)}</span>
+              <span className="tnum text-2xs text-ink-400">{formatConfidence(item.confidence)}</span>
             </div>
           </div>
 
           {item.summary ? (
-            <p className="mt-2.5 break-words text-sm leading-relaxed text-[#374151]">{item.summary}</p>
+            <p className="mt-2.5 break-words text-sm leading-relaxed text-ink-700">{item.summary}</p>
           ) : null}
 
           {item.excerpt ? (
             <details className="mt-2.5 group">
-              <summary className="cursor-pointer list-none text-xs font-semibold text-[#4B5563] marker:hidden hover:text-[#111827]">
+              <summary className="cursor-pointer list-none text-xs font-medium text-ink-500 marker:hidden hover:text-ink-800">
                 <span className="group-open:hidden">Show source excerpt</span>
                 <span className="hidden group-open:inline">Hide source excerpt</span>
               </summary>
-              <blockquote className="mt-2 break-words border-l-2 border-[#D1D5DB] bg-[#E5E7EB]/40 p-2.5 rounded-r-lg text-sm italic leading-relaxed text-[#4B5563]">
+              <blockquote className="mt-2 break-words border-l-2 border-paper-300 pl-3 text-sm italic leading-relaxed text-ink-600">
                 {item.excerpt}
               </blockquote>
             </details>
           ) : null}
 
-          <dl className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-2xs text-[#6B7280]">
+          <dl className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-2xs text-ink-400">
             {subclaimText ? (
               <div className="flex min-w-0 gap-1.5">
-                <dt className="shrink-0 uppercase font-bold tracking-[0.1em]">Compared against</dt>
-                <dd className="truncate text-[#374151]" title={subclaimText}>
+                <dt className="shrink-0 uppercase tracking-[0.1em]">Compared against</dt>
+                <dd className="truncate text-ink-600" title={subclaimText}>
                   {truncateLabel(subclaimText)}
                 </dd>
               </div>
             ) : null}
             {item.category ? (
               <div className="flex gap-1.5">
-                <dt className="uppercase font-bold tracking-[0.1em]">Kind</dt>
-                <dd className="text-[#374151]">{categoryLabel(item.category)}</dd>
+                <dt className="uppercase tracking-[0.1em]">Kind</dt>
+                <dd className="text-ink-600">{categoryLabel(item.category)}</dd>
               </div>
             ) : null}
             {item.assessment_status ? (
               <div className="flex gap-1.5">
-                <dt className="uppercase font-bold tracking-[0.1em]">Status</dt>
-                <dd className="text-[#374151]">{assessmentStatusLabel(item.assessment_status)}</dd>
+                <dt className="uppercase tracking-[0.1em]">Status</dt>
+                <dd className="text-ink-600">{assessmentStatusLabel(item.assessment_status)}</dd>
               </div>
             ) : null}
             {item.provenance_class ? (
               <div className="flex min-w-0 gap-1.5">
-                <dt className="shrink-0 uppercase font-bold tracking-[0.1em]">Source type</dt>
-                <dd className="min-w-0 break-words text-[#374151]">{provenanceLabel(item.provenance_class)}</dd>
+                <dt className="shrink-0 uppercase tracking-[0.1em]">Source type</dt>
+                <dd className="min-w-0 break-words text-ink-600">{provenanceLabel(item.provenance_class)}</dd>
               </div>
             ) : null}
             {item.role ? (
               <div className="flex min-w-0 gap-1.5">
-                <dt className="shrink-0 uppercase font-bold tracking-[0.1em]">Role</dt>
+                <dt className="shrink-0 uppercase tracking-[0.1em]">Role</dt>
                 <dd
-                  className={`min-w-0 break-words ${isZeroWeightRole(item.role) ? 'text-[#6B7280]' : 'text-[#374151]'}`}
+                  className={`min-w-0 break-words ${isZeroWeightRole(item.role) ? 'text-ink-400' : 'text-ink-600'}`}
                   title={item.role_reason ?? undefined}
                 >
                   {evidenceRoleLabel(item.role)}
@@ -305,8 +305,8 @@ function EvidenceCard({
             ) : null}
             {typeof independenceGroup === 'number' ? (
               <div className="flex gap-1.5">
-                <dt className="uppercase font-bold tracking-[0.1em]">Independence group</dt>
-                <dd className="tnum text-[#374151]">#{independenceGroup}</dd>
+                <dt className="uppercase tracking-[0.1em]">Independence group</dt>
+                <dd className="tnum text-ink-600">#{independenceGroup}</dd>
               </div>
             ) : null}
           </dl>

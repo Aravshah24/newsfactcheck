@@ -33,21 +33,21 @@ const config: Config = {
         ],
       },
       colors: {
-        // Cool grayscale neutrals replacing warm paper/ink palette
+        // Warm paper neutrals, so the page reads as a research document rather
+        // than a dashboard surface.
         paper: {
-          50: '#F3F4F6',   // canvas fallback
-          100: '#E5E7EB',  // secondary / muted panels & footers
-          200: '#D1D5DB',  // borders & dividers
-          300: '#9CA3AF',  // subtle borders / accents
+          50: '#faf9f7',
+          100: '#f4f2ef',
+          200: '#e7e4df',
+          300: '#d6d2cb',
         },
         ink: {
-          300: '#9CA3AF',
-          400: '#6B7280',  // muted placeholder/counter text
-          500: '#6B7280',  // muted text
-          600: '#4B5563',  // secondary slate gray text
-          700: '#374151',  // body / secondary dark gray
-          800: '#1F2937',  // primary dark gray buttons & logo badge
-          900: '#111827',  // primary dark gray ink & headings
+          400: '#8a8580',
+          500: '#6b6660',
+          600: '#4d4842',
+          700: '#33302c',
+          800: '#211f1c',
+          900: '#141311',
         },
       },
       fontSize: {

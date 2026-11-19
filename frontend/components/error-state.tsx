@@ -16,24 +16,24 @@ export function ErrorState({
   return (
     <div
       role="alert"
-      className="animate-fade-rise rounded-lg border border-rose-200 bg-rose-50/60 p-6 sm:p-7"
+      className="animate-fade-rise rounded-lg border border-rose-200 bg-rose-50/80 p-6 sm:p-7 backdrop-blur-md"
     >
       <div className="flex items-start gap-3.5">
         <span
           aria-hidden="true"
-          className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-rose-300 bg-white text-sm font-bold text-rose-600"
+          className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-rose-300 bg-[#F9FAFB] text-sm font-bold text-rose-600"
         >
           !
         </span>
         <div className="min-w-0 flex-1">
-          <h2 className="font-serif text-lg font-semibold text-ink-900">{title}</h2>
+          <h2 className="font-serif text-lg font-semibold text-[#111827]">{title}</h2>
           {detail ? (
-            <p className="mt-1.5 break-words text-sm leading-relaxed text-ink-600">{detail}</p>
+            <p className="mt-1.5 break-words text-sm leading-relaxed text-[#4B5563]">{detail}</p>
           ) : null}
-          {hint ? <p className="mt-2 text-sm leading-relaxed text-ink-500">{hint}</p> : null}
+          {hint ? <p className="mt-2 text-sm leading-relaxed text-[#4B5563]">{hint}</p> : null}
 
           {error instanceof ApiError && error.status ? (
-            <p className="tnum mt-2.5 text-2xs uppercase tracking-[0.1em] text-ink-400">
+            <p className="tnum mt-2.5 text-2xs uppercase tracking-[0.1em] text-[#6B7280]">
               HTTP {error.status}
             </p>
           ) : null}
@@ -43,7 +43,7 @@ export function ErrorState({
               <button
                 type="button"
                 onClick={onRetry}
-                className="rounded-md bg-ink-900 px-4 py-2 text-sm font-semibold text-paper-50 transition hover:bg-ink-700"
+                className="rounded-md bg-[#1F2937] px-4 py-2 text-sm font-semibold text-[#F9FAFB] transition hover:bg-[#111827]"
               >
                 Try again
               </button>
@@ -51,7 +51,7 @@ export function ErrorState({
             <button
               type="button"
               onClick={onNewClaim}
-              className="rounded-md border border-paper-300 bg-white px-4 py-2 text-sm font-medium text-ink-700 transition hover:border-ink-400"
+              className="rounded-md border border-[#D1D5DB] bg-[#F9FAFB]/92 backdrop-blur-md px-4 py-2 text-sm font-medium text-[#374151] transition hover:border-[#4B5563] hover:text-[#111827]"
             >
               Investigate another claim
             </button>
@@ -71,17 +71,17 @@ function describe(error: unknown): {
   if (error instanceof ApiError) {
     if (error.detail === 'cancelled') {
       return {
-        title: 'Investigation running in background',
-        detail: null,
-        hint: 'You stopped waiting for the response. The backend is still processing the investigation. It will be saved and can be reopened from the "Stored investigations" list below.',
+        title: 'Rate limit reached',
+        detail: error.message,
+        hint: 'Too many investigations submitted recently. Wait a minute and try again.',
         retryable: true,
       };
     }
     if (error.status === null) {
       return {
-        title: 'Cannot reach the backend',
+        title: 'Backend error',
         detail: error.message,
-        hint: 'Confirm the API is running and that NEXT_PUBLIC_API_URL points at it.',
+        hint: 'The backend returned an unexpected response. Try again in a moment.',
         retryable: true,
       };
     }
@@ -101,24 +101,37 @@ function describe(error: unknown): {
         retryable: false,
       };
     }
-    if (error.status >= 500) {
+    if (error.status === 429) {
       return {
-        title: 'The investigation failed',
+        title: 'Rate limit reached',
         detail: error.message,
-        hint: 'The backend ran the pipeline and could not complete it. Retrying will start a fresh run.',
+        hint: 'Too many investigations submitted recently. Wait a minute and try again.',
         retryable: true,
       };
     }
-    return { title: 'Request failed', detail: error.message, hint: null, retryable: true };
+    return { title: 'Backend error', detail: error.message, hint: null, retryable: true };
   }
 
   if (error instanceof Error) {
-    return { title: 'Something went wrong', detail: error.message, hint: null, retryable: true };
+    if (error.name === 'AbortError') {
+      return {
+        title: 'Request was cancelled',
+        detail: null,
+        hint: null,
+        retryable: true,
+      };
+    }
+    return {
+      title: 'Investigation failed',
+      detail: error.message,
+      hint: 'An unexpected error occurred in the browser.',
+      retryable: true,
+    };
   }
 
   return {
-    title: 'Something went wrong',
-    detail: 'An unexpected error occurred.',
+    title: 'Investigation failed',
+    detail: 'An unknown error occurred.',
     hint: null,
     retryable: true,
   };

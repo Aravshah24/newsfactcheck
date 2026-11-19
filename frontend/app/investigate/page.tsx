@@ -189,7 +189,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="newspaper-page min-h-screen">
       <SiteHeader health={health} healthError={healthError} />
 
       <main className="mx-auto w-full max-w-[86rem] px-5 pb-24 pt-10 sm:px-8 sm:pt-14">
@@ -270,7 +270,7 @@ export default function Home() {
 
 function SiteHeader({ health, healthError }: { health: ServiceHealth | null; healthError: boolean }) {
   return (
-    <header className="border-b border-paper-200 bg-paper-100/60">
+    <header className="border-b border-paper-200 bg-paper-50">
       <div className="mx-auto flex max-w-[86rem] flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-8">
         <Link href="/" className="flex items-center gap-3" aria-label="FactTrace home">
           <LogoMark />

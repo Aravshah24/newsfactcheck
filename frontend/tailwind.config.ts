@@ -33,21 +33,21 @@ const config: Config = {
         ],
       },
       colors: {
-        // Warm paper neutrals, so the page reads as a research document rather
-        // than a dashboard surface.
+        // Cool gray/slate palette for contrast against the warm newspaper texture
         paper: {
-          50: '#faf9f7',
-          100: '#f4f2ef',
-          200: '#e7e4df',
-          300: '#d6d2cb',
+          50: '#EEF1F4',   // light gray canvas
+          100: '#DDE3E8',  // secondary panels & footers
+          200: '#C5CED6',  // borders & dividers
+          300: '#9AA8B5',  // subtle borders / accents
         },
         ink: {
-          400: '#8a8580',
-          500: '#6b6660',
-          600: '#4d4842',
-          700: '#33302c',
-          800: '#211f1c',
-          900: '#141311',
+          300: '#8A99A6',
+          400: '#647382',  // muted placeholder/counter text
+          500: '#526170',  // muted text
+          600: '#3F4D5B',  // secondary slate text
+          700: '#2E3A46',  // body / secondary dark slate
+          800: '#202B36',  // primary slate buttons & logo badge
+          900: '#111A23',  // primary slate ink & headings
         },
       },
       fontSize: {

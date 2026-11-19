@@ -16,7 +16,7 @@ export interface Descriptor {
   description: string;
 }
 
-const NEUTRAL_CHIP = 'border-stone-300 bg-stone-100 text-stone-700';
+const NEUTRAL_CHIP = 'border-[#D1D5DB] bg-[#E5E7EB] text-[#4B5563]';
 
 function descriptor(
   label: string,
@@ -67,9 +67,9 @@ const OVERALL_VERDICTS: Record<string, Descriptor> = {
     'Insufficient evidence',
     '○',
     'neutral',
-    'text-stone-600',
+    'text-[#4B5563]',
     'The evidence retrieved is too limited or too inconsistent to sustain a conclusion.',
-    'border-stone-300 bg-stone-100 text-stone-700',
+    'border-[#D1D5DB] bg-[#E5E7EB] text-[#4B5563]',
   ),
 };
 
@@ -84,9 +84,9 @@ const SUBCLAIM_VERDICTS: Record<string, Descriptor> = {
     'Unverifiable',
     '?',
     'neutral',
-    'text-stone-600',
+    'text-[#4B5563]',
     'The subclaim could not be checked against the retrieved evidence.',
-    'border-stone-300 bg-stone-100 text-stone-700',
+    'border-[#D1D5DB] bg-[#E5E7EB] text-[#4B5563]',
   ),
 };
 
@@ -119,17 +119,17 @@ const STANCES: Record<string, Descriptor> = {
     'Neutral',
     '–',
     'neutral',
-    'text-stone-600',
+    'text-[#4B5563]',
     'The document was retrieved but does not speak to the claim directly.',
-    'border-stone-300 bg-stone-100 text-stone-700',
+    'border-[#D1D5DB] bg-[#E5E7EB] text-[#4B5563]',
   ),
   unknown: descriptor(
     'Not assessed',
     '?',
     'neutral',
-    'text-stone-500',
+    'text-[#6B7280]',
     'The document could not be assessed against the claim.',
-    'border-stone-300 bg-stone-100 text-stone-600',
+    'border-[#D1D5DB] bg-[#E5E7EB] text-[#4B5563]',
   ),
 };
 

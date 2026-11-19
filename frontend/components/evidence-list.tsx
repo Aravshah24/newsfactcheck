@@ -87,10 +87,10 @@ export function EvidenceList({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div
-          className="flex flex-wrap items-center gap-1 rounded-md border border-paper-300 bg-white p-1"
+          className="flex flex-wrap items-center gap-1 rounded-xl border border-[#D1D5DB] bg-[#F9FAFB]/95 backdrop-blur-md p-1.5 shadow-md"
           role="group"
           aria-label="Filter evidence by stance"
         >
@@ -102,12 +102,12 @@ export function EvidenceList({
                 type="button"
                 onClick={() => setFilter(option.key)}
                 aria-pressed={active}
-                className={`rounded px-2.5 py-1 text-xs font-medium transition ${
-                  active ? 'bg-ink-900 text-paper-50' : 'text-ink-500 hover:bg-paper-100 hover:text-ink-800'
+                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                  active ? 'bg-[#1F2937] text-[#F9FAFB] shadow-sm' : 'text-[#4B5563] hover:bg-[#E5E7EB] hover:text-[#111827]'
                 }`}
               >
                 {option.label}
-                <span className={`tnum ml-1.5 ${active ? 'text-paper-300' : 'text-ink-300'}`}>
+                <span className={`tnum ml-1.5 ${active ? 'text-[#9CA3AF]' : 'text-[#6B7280]'}`}>
                   {counts[option.key]}
                 </span>
               </button>
@@ -116,17 +116,15 @@ export function EvidenceList({
         </div>
 
         {subclaims.length > 1 ? (
-          <label className="flex min-w-0 items-center gap-2 text-xs text-ink-500">
-            <span className="shrink-0 uppercase tracking-[0.1em] text-ink-400">Subclaim</span>
+          <label className="flex min-w-0 items-center gap-2 rounded-xl border border-[#D1D5DB] bg-[#F9FAFB]/95 px-3 py-1.5 text-xs text-[#4B5563] shadow-md backdrop-blur-md">
+            <span className="shrink-0 uppercase font-bold tracking-[0.1em] text-[#6B7280]">Subclaim</span>
             <select
               value={String(subclaimId)}
               onChange={(event) => {
                 const next = event.target.value;
                 setSubclaimId(next === 'all' ? 'all' : Number(next));
               }}
-              // A select sizes itself to its widest option, so it is capped and
-              // allowed to shrink; otherwise a long subclaim overflows the page.
-              className="min-w-0 max-w-[11rem] truncate rounded-md border border-paper-300 bg-white px-2 py-1 text-xs text-ink-700 outline-none focus-visible:ring-2 focus-visible:ring-ink-800 sm:max-w-[16rem]"
+              className="min-w-0 max-w-[11rem] truncate rounded-md border border-[#D1D5DB] bg-white px-2 py-1 text-xs text-[#111827] outline-none focus-visible:ring-2 focus-visible:ring-[#1F2937] sm:max-w-[16rem]"
             >
               <option value="all">All subclaims</option>
               {subclaims.map((sub, index) => (
@@ -148,14 +146,14 @@ export function EvidenceList({
               setFilter('all');
               setSubclaimId('all');
             }}
-            className="font-medium text-ink-700 underline underline-offset-4"
+            className="rounded-lg border border-[#D1D5DB] bg-[#F3F4F6]/95 px-3.5 py-1.5 text-sm text-[#4B5563] shadow-sm backdrop-blur-md"
           >
             Clear filters
           </button>
         </EmptyNote>
       ) : (
         <>
-          <ul className="space-y-2">
+          <ul className="space-y-3">
             {visible.map((item) => (
               <EvidenceCard
                 key={item.id ?? `${item.document_id}-${item.subclaim_id}`}
@@ -165,11 +163,13 @@ export function EvidenceList({
               />
             ))}
           </ul>
-          <p className="text-xs text-ink-400">
-            Showing {visible.length} of {evidence.length}{' '}
-            {pluralise(evidence.length, 'assessed document')}. Only documents compared against the claim
-            on every specified dimension are counted as support.
-          </p>
+          <div>
+            <p className="inline-block rounded-lg border border-[#D1D5DB] bg-[#F3F4F6]/95 px-3.5 py-1.5 text-xs text-[#4B5563] shadow-sm backdrop-blur-md">
+              Showing {visible.length} of {evidence.length}{' '}
+              {pluralise(evidence.length, 'assessed document')}. Only documents compared against the claim
+              on every specified dimension are counted as support.
+            </p>
+          </div>
         </>
       )}
     </div>

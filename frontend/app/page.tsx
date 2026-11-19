@@ -5,8 +5,9 @@ import { LogoMark } from '@/components/primitives';
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-paper-50">
-      <header className="border-b border-paper-200 bg-paper-100/60 sticky top-0 z-10">
+    <div className="newspaper-page min-h-screen bg-paper-50">
+
+      <header className="sticky top-0 z-10 border-b border-paper-200 bg-paper-50">
         <div className="mx-auto flex max-w-[86rem] items-center justify-between gap-4 px-5 py-4 sm:px-8">
           <Link href="/" className="flex items-center gap-3" aria-label="FactTrace home">
             <LogoMark />
@@ -46,9 +47,9 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <main>
+      <main className="relative z-[1]">
         <section className="mx-auto max-w-[86rem] px-5 py-16 sm:px-8 sm:py-24 lg:py-28">
-          <div className="mx-auto max-w-3xl text-center">
+          <div className="mx-auto max-w-3xl rounded-2xl border border-[#C5CED6]/90 bg-[#EEF1F4]/90 p-6 text-center shadow-lg backdrop-blur-md sm:p-10">
             <p className="label-micro">Fact-checking with traceable evidence</p>
             <h1 className="mt-4 font-serif text-4xl font-semibold leading-[1.1] tracking-tight text-ink-900 sm:text-[3.5rem] lg:text-[4rem]">
               Trace the evidence behind any claim.
@@ -87,9 +88,6 @@ export default function LandingPage() {
               </Link>
             </div>
 
-            <div className="mt-16 relative" aria-hidden="true">
-              <EvidenceTrailVisual />
-            </div>
           </div>
         </section>
 
@@ -161,41 +159,9 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-[86rem] px-5 py-16 sm:px-8 sm:py-24 bg-ink-900">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="font-serif text-2xl font-semibold leading-snug tracking-tight text-paper-50 sm:text-3xl">
-              Ready to investigate a claim?
-            </h2>
-            <p className="mt-4 text-base leading-relaxed text-paper-50">
-              Paste a claim exactly as published. FactTrace will retrieve sources, evaluate the
-              evidence, and return a verifiable report.
-            </p>
-            <div className="mt-8">
-              <Link
-                href="/investigate"
-                className="inline-flex items-center gap-2 rounded-md bg-paper-50 px-6 py-3 text-base font-semibold text-ink-900 transition hover:bg-paper-100 focus-visible:ring-2 focus-visible:ring-paper-50 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900"
-              >
-                Start an investigation
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 16 16"
-                  className="h-4 w-4 shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M3 8h10" />
-                  <path d="M9 4l4 4-4 4" />
-                </svg>
-              </Link>
-            </div>
-          </div>
-        </section>
       </main>
 
-      <footer className="border-t border-paper-200 bg-paper-100/60 px-5 py-10 sm:px-8">
+      <footer className="relative z-[1] border-t border-paper-200 bg-paper-100/60 px-5 py-10 sm:px-8">
         <div className="mx-auto flex max-w-[86rem] flex-wrap items-center justify-between gap-4 text-2xs text-ink-400">
           <p>
             FactTrace — Evidence-backed claim investigation. Verdicts are research aids, not
@@ -247,51 +213,5 @@ function CapabilityCard({
       <h3 className="font-serif text-base font-semibold leading-snug text-ink-900">{title}</h3>
       <p className="mt-2.5 text-sm leading-relaxed text-ink-600">{description}</p>
     </article>
-  );
-}
-
-function EvidenceTrailVisual() {
-  // A subtle evidence-trail motif: connected nodes with varying opacity,
-  // suggesting a chain of documents leading to a conclusion.
-  return (
-    <svg
-      viewBox="0 0 400 200"
-      className="mx-auto max-w-[32rem] h-auto opacity-60"
-      aria-hidden="true"
-      role="img"
-      aria-label="Evidence trail visualisation"
-    >
-      <defs>
-        <linearGradient id="trailGradient" x1="0%" y1="50%" x2="100%" y2="50%">
-          <stop offset="0%" stopColor="#211f1c" stopOpacity="0.15" />
-          <stop offset="50%" stopColor="#211f1c" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#211f1c" stopOpacity="0.6" />
-        </linearGradient>
-      </defs>
-
-      {/* Connecting trail */}
-      <path
-        d="M40,100 Q100,60 160,100 Q220,140 280,100 Q340,60 360,100"
-        fill="none"
-        stroke="url(#trailGradient)"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-
-      {/* Nodes - varying sizes and opacities */}
-      <circle cx="40" cy="100" r="4" fill="#211f1c" opacity="0.2" />
-      <circle cx="100" cy="60" r="5" fill="#211f1c" opacity="0.3" />
-      <circle cx="160" cy="100" r="6" fill="#211f1c" opacity="0.4" />
-      <circle cx="220" cy="140" r="5" fill="#211f1c" opacity="0.35" />
-      <circle cx="280" cy="100" r="7" fill="#211f1c" opacity="0.5" />
-      <circle cx="340" cy="60" r="5" fill="#211f1c" opacity="0.35" />
-      <circle cx="360" cy="100" r="8" fill="#211f1c" opacity="0.7" />
-
-      {/* Small satellites around key nodes */}
-      <circle cx="160" cy="100" r="14" fill="none" stroke="#211f1c" strokeWidth="0.5" opacity="0.15" />
-      <circle cx="280" cy="100" r="18" fill="none" stroke="#211f1c" strokeWidth="0.5" opacity="0.15" />
-      <circle cx="360" cy="100" r="22" fill="none" stroke="#211f1c" strokeWidth="0.5" opacity="0.15" />
-    </svg>
   );
 }

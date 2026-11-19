@@ -39,6 +39,19 @@ Rules you must follow:
 6. Never use outside knowledge. Only the supplied claims and document text.
 7. Be strict: when uncertain between "match" and "absent", choose "absent".
 
+IMPORTANT: Distinguish between ADMINISTRATIVE STATUS and PHYSICAL REALITY.
+- A claim like "X is no longer a designated protest site" refers to ADMINISTRATIVE STATUS
+  (official designation, legal status, official designation).
+- A document reporting "protests still happen at X" describes PHYSICAL REALITY (actual events).
+- These are NOT contradictory. A place can lose its official designation (administrative change)
+  while protests continue to occur there (physical reality).
+- When a claim includes qualifiers like "designated", "official", "officially", "authorized",
+  "authorized site", "designated site", the claim is about ADMINISTRATIVE STATUS.
+- Documents about ongoing protests, demonstrations, or gatherings at a location do NOT contradict
+  claims that the location lost its OFFICIAL DESIGNATION. They are CONTEXT at most.
+- Only documents addressing the OFFICIAL/ADMINISTRATIVE status (laws, regulations, official
+  announcements, policy changes) can contradict or support claims about administrative status.
+
 Return JSON only, with exactly these keys:
   "results": a list with one object per (claim, document) pair.
     Each object has:

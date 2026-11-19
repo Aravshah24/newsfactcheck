@@ -40,6 +40,38 @@
   .report-prose {
     @apply whitespace-pre-wrap break-words text-[0.95rem] leading-[1.75] text-ink-700;
   }
+
+  /* Keep legacy white utility panels cool, translucent, and readable over the photo background. */
+  .newspaper-page .bg-white {
+    background-color: rgba(238, 241, 244, 0.92) !important;
+  }
+
+  /* Shared newspaper texture for the landing and investigation pages. */
+  .newspaper-page {
+    position: relative;
+    isolation: isolate;
+    background-color: #f6efe1;
+    background-image:
+      radial-gradient(ellipse 30rem 20rem at 14% 18%, rgba(91, 43, 17, 0.28) 0%, transparent 72%),
+      radial-gradient(ellipse 24rem 17rem at 84% 56%, rgba(103, 52, 21, 0.24) 0%, transparent 74%),
+      linear-gradient(rgba(105, 55, 25, 0.28), rgba(105, 55, 25, 0.28));
+    background-position: center, center, center;
+    background-size: auto, auto, auto;
+    background-attachment: fixed;
+    background-blend-mode: multiply, multiply, color;
+  }
+
+  .newspaper-page::before {
+    content: '';
+    position: fixed;
+    inset: -1rem;
+    z-index: -1;
+    pointer-events: none;
+    background: url('/newspaper.jpeg') center top / cover no-repeat;
+    filter: sepia(0.72) saturate(0.78) blur(3px);
+    opacity: 0.72;
+    transform: scale(1.015);
+  }
 }
 
 /* Respect a reduced-motion preference for every animation used above. */

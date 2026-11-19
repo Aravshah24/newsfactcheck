@@ -5,16 +5,16 @@ import { LogoMark } from '@/components/primitives';
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-transparent">
-      <header className="border-b border-[#D1D5DB] bg-[#F3F4F6]/95 backdrop-blur-md sticky top-0 z-10">
+    <div className="min-h-screen bg-paper-50">
+      <header className="border-b border-paper-200 bg-paper-100/60 sticky top-0 z-10">
         <div className="mx-auto flex max-w-[86rem] items-center justify-between gap-4 px-5 py-4 sm:px-8">
           <Link href="/" className="flex items-center gap-3" aria-label="FactTrace home">
             <LogoMark />
             <div>
-              <p className="font-serif text-base font-semibold leading-none tracking-tight text-[#111827]">
+              <p className="font-serif text-base font-semibold leading-none tracking-tight text-ink-900">
                 FactTrace
               </p>
-              <p className="mt-1 text-2xs uppercase tracking-[0.14em] text-[#6B7280]">
+              <p className="mt-1 text-2xs uppercase tracking-[0.14em] text-ink-400">
                 Evidence-backed claim investigation
               </p>
             </div>
@@ -23,13 +23,13 @@ export default function LandingPage() {
           <nav className="hidden md:flex items-center gap-6">
             <Link
               href="#how-it-works"
-              className="text-sm font-medium text-[#4B5563] transition hover:text-[#111827]"
+              className="text-sm font-medium text-ink-600 transition hover:text-ink-900"
             >
               How it works
             </Link>
             <Link
               href="/investigate"
-              className="rounded-md bg-[#1F2937] px-4 py-2 text-sm font-semibold text-[#F9FAFB] transition hover:bg-[#111827]"
+              className="rounded-md bg-ink-900 px-4 py-2 text-sm font-semibold text-paper-50 transition hover:bg-ink-700"
             >
               Investigate a claim
             </Link>
@@ -38,7 +38,7 @@ export default function LandingPage() {
           <div className="md:hidden">
             <Link
               href="/investigate"
-              className="rounded-md bg-[#1F2937] px-4 py-2 text-sm font-semibold text-[#F9FAFB] transition hover:bg-[#111827]"
+              className="rounded-md bg-ink-900 px-4 py-2 text-sm font-semibold text-paper-50 transition hover:bg-ink-700"
             >
               Investigate a claim
             </Link>
@@ -46,15 +46,14 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <main className="bg-transparent">
-        {/* Hero Section */}
-        <section className="mx-auto max-w-[86rem] px-5 py-12 sm:px-8 sm:py-16 lg:py-20">
-          <div className="mx-auto max-w-3xl text-center rounded-2xl border border-[#D1D5DB] bg-[#F3F4F6]/95 p-8 md:p-12 shadow-lg backdrop-blur-md">
+      <main>
+        <section className="mx-auto max-w-[86rem] px-5 py-16 sm:px-8 sm:py-24 lg:py-28">
+          <div className="mx-auto max-w-3xl text-center">
             <p className="label-micro">Fact-checking with traceable evidence</p>
-            <h1 className="mt-4 font-serif text-4xl font-semibold leading-[1.1] tracking-tight text-[#111827] sm:text-[3.25rem] lg:text-[3.75rem]">
+            <h1 className="mt-4 font-serif text-4xl font-semibold leading-[1.1] tracking-tight text-ink-900 sm:text-[3.5rem] lg:text-[4rem]">
               Trace the evidence behind any claim.
             </h1>
-            <p className="mt-6 text-lg leading-relaxed text-[#4B5563]">
+            <p className="mt-6 text-lg leading-relaxed text-ink-600">
               Paste a claim. FactTrace decomposes it, retrieves sources across the web and official
               records, compares each document dimension by dimension, and weighs conclusions by
               source independence.
@@ -63,7 +62,7 @@ export default function LandingPage() {
             <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
               <Link
                 href="/investigate"
-                className="rounded-md bg-[#1F2937] px-6 py-3 text-base font-semibold text-[#F9FAFB] transition hover:bg-[#111827] focus-visible:ring-2 focus-visible:ring-[#1F2937] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F3F4F6]"
+                className="rounded-md bg-ink-900 px-6 py-3 text-base font-semibold text-paper-50 transition hover:bg-ink-700 focus-visible:ring-2 focus-visible:ring-ink-800 focus-visible:ring-offset-2 focus-visible:ring-offset-paper-50"
               >
                 Investigate a claim
                 <svg
@@ -82,23 +81,22 @@ export default function LandingPage() {
               </Link>
               <Link
                 href="#how-it-works"
-                className="rounded-md border border-[#D1D5DB] bg-[#F9FAFB]/95 backdrop-blur-md px-6 py-3 text-base font-medium text-[#374151] transition hover:border-[#4B5563] hover:text-[#111827]"
+                className="rounded-md border border-paper-300 bg-white px-6 py-3 text-base font-medium text-ink-700 transition hover:border-ink-400 hover:text-ink-900"
               >
                 See how it works
               </Link>
             </div>
 
-            <div className="mt-12 relative" aria-hidden="true">
+            <div className="mt-16 relative" aria-hidden="true">
               <EvidenceTrailVisual />
             </div>
           </div>
         </section>
 
-        {/* How it works */}
         <section id="how-it-works" className="mx-auto max-w-[86rem] px-5 py-12 sm:px-8 sm:py-16">
-          <header className="mx-auto max-w-2xl text-center mb-10 rounded-2xl border border-[#D1D5DB] bg-[#F3F4F6]/95 p-6 md:p-8 shadow-md backdrop-blur-md">
+          <header className="mx-auto max-w-2xl text-center mb-16">
             <p className="label-micro">How it works</p>
-            <h2 className="mt-2 font-serif text-2xl font-semibold leading-snug tracking-tight text-[#111827] sm:text-3xl">
+            <h2 className="mt-3 font-serif text-2xl font-semibold leading-snug tracking-tight text-ink-900 sm:text-3xl">
               From claim to verifiable conclusion in four steps.
             </h2>
           </header>
@@ -127,11 +125,10 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Core capabilities */}
-        <section className="mx-auto max-w-[86rem] px-5 py-12 sm:px-8 sm:py-16">
-          <header className="mx-auto max-w-2xl text-center mb-10 rounded-2xl border border-[#D1D5DB] bg-[#F3F4F6]/95 p-6 md:p-8 shadow-md backdrop-blur-md">
+        <section className="mx-auto max-w-[86rem] px-5 py-16 sm:px-8 sm:py-24 bg-paper-100/50">
+          <header className="mx-auto max-w-2xl text-center mb-16">
             <p className="label-micro">Core capabilities</p>
-            <h2 className="mt-2 font-serif text-2xl font-semibold leading-snug tracking-tight text-[#111827] sm:text-3xl">
+            <h2 className="mt-3 font-serif text-2xl font-semibold leading-snug tracking-tight text-ink-900 sm:text-3xl">
               Built for rigorous, transparent investigation.
             </h2>
           </header>
@@ -164,20 +161,19 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* CTA section */}
-        <section className="mx-auto max-w-4xl px-5 py-12 sm:px-8">
-          <div className="rounded-2xl border border-[#D1D5DB] bg-[#1F2937] p-8 md:p-12 text-center text-[#F9FAFB] shadow-xl">
-            <h2 className="font-serif text-2xl font-semibold leading-snug tracking-tight text-[#F9FAFB] sm:text-3xl">
+        <section className="mx-auto max-w-[86rem] px-5 py-16 sm:px-8 sm:py-24 bg-ink-900">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="font-serif text-2xl font-semibold leading-snug tracking-tight text-paper-50 sm:text-3xl">
               Ready to investigate a claim?
             </h2>
-            <p className="mt-4 text-base leading-relaxed text-[#D1D5DB]">
+            <p className="mt-4 text-base leading-relaxed text-paper-50">
               Paste a claim exactly as published. FactTrace will retrieve sources, evaluate the
               evidence, and return a verifiable report.
             </p>
             <div className="mt-8">
               <Link
                 href="/investigate"
-                className="inline-flex items-center gap-2 rounded-md bg-[#F9FAFB] px-6 py-3 text-base font-semibold text-[#111827] transition hover:bg-[#E5E7EB] focus-visible:ring-2 focus-visible:ring-[#F9FAFB] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F2937]"
+                className="inline-flex items-center gap-2 rounded-md bg-paper-50 px-6 py-3 text-base font-semibold text-ink-900 transition hover:bg-paper-100 focus-visible:ring-2 focus-visible:ring-paper-50 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900"
               >
                 Start an investigation
                 <svg
@@ -199,17 +195,17 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t border-[#D1D5DB] bg-[#F3F4F6]/95 backdrop-blur-md px-5 py-8 sm:px-8">
-        <div className="mx-auto flex max-w-[86rem] flex-wrap items-center justify-between gap-4 text-2xs text-[#6B7280]">
+      <footer className="border-t border-paper-200 bg-paper-100/60 px-5 py-10 sm:px-8">
+        <div className="mx-auto flex max-w-[86rem] flex-wrap items-center justify-between gap-4 text-2xs text-ink-400">
           <p>
             FactTrace — Evidence-backed claim investigation. Verdicts are research aids, not
             calibrated truth.
           </p>
           <nav className="flex flex-wrap items-center gap-4">
-            <Link href="/investigate" className="underline underline-offset-2 hover:text-[#111827]">
+            <Link href="/investigate" className="underline underline-offset-2 hover:text-ink-700">
               Investigate
             </Link>
-            <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-[#111827]">
+            <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-ink-700">
               GitHub
             </a>
           </nav>
@@ -229,12 +225,12 @@ function StepCard({
   description: string;
 }) {
   return (
-    <article className="relative rounded-2xl border border-[#D1D5DB] bg-[#F9FAFB]/95 backdrop-blur-md p-6 shadow-md">
-      <span className="absolute -top-3 left-4 z-10 rounded-full border border-[#D1D5DB] bg-[#E5E7EB] px-2.5 py-0.5 text-2xs font-semibold uppercase tracking-[0.12em] text-[#374151]">
+    <article className="relative rounded-lg border border-paper-200 bg-white p-6">
+      <span className="absolute -top-3 left-4 z-10 rounded-full bg-paper-50 px-2.5 py-0.5 text-2xs font-semibold uppercase tracking-[0.12em] text-ink-500">
         Step {number}
       </span>
-      <h3 className="mt-2 font-serif text-lg font-semibold leading-snug text-[#111827]">{title}</h3>
-      <p className="mt-3 text-sm leading-relaxed text-[#4B5563]">{description}</p>
+      <h3 className="mt-2 font-serif text-lg font-semibold leading-snug text-ink-900">{title}</h3>
+      <p className="mt-3 text-sm leading-relaxed text-ink-600">{description}</p>
     </article>
   );
 }
@@ -247,9 +243,9 @@ function CapabilityCard({
   description: string;
 }) {
   return (
-    <article className="rounded-2xl border border-[#D1D5DB] bg-[#F9FAFB]/95 backdrop-blur-md p-6 shadow-md">
-      <h3 className="font-serif text-base font-semibold leading-snug text-[#111827]">{title}</h3>
-      <p className="mt-2.5 text-sm leading-relaxed text-[#4B5563]">{description}</p>
+    <article className="rounded-lg border border-paper-200 bg-white p-6">
+      <h3 className="font-serif text-base font-semibold leading-snug text-ink-900">{title}</h3>
+      <p className="mt-2.5 text-sm leading-relaxed text-ink-600">{description}</p>
     </article>
   );
 }
@@ -260,16 +256,16 @@ function EvidenceTrailVisual() {
   return (
     <svg
       viewBox="0 0 400 200"
-      className="mx-auto max-w-[32rem] h-auto opacity-75"
+      className="mx-auto max-w-[32rem] h-auto opacity-60"
       aria-hidden="true"
       role="img"
       aria-label="Evidence trail visualisation"
     >
       <defs>
         <linearGradient id="trailGradient" x1="0%" y1="50%" x2="100%" y2="50%">
-          <stop offset="0%" stopColor="#111827" stopOpacity="0.2" />
-          <stop offset="50%" stopColor="#111827" stopOpacity="0.45" />
-          <stop offset="100%" stopColor="#111827" stopOpacity="0.75" />
+          <stop offset="0%" stopColor="#211f1c" stopOpacity="0.15" />
+          <stop offset="50%" stopColor="#211f1c" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="#211f1c" stopOpacity="0.6" />
         </linearGradient>
       </defs>
 
@@ -284,18 +280,18 @@ function EvidenceTrailVisual() {
       />
 
       {/* Nodes - varying sizes and opacities */}
-      <circle cx="40" cy="100" r="4" fill="#111827" opacity="0.3" />
-      <circle cx="100" cy="60" r="5" fill="#111827" opacity="0.4" />
-      <circle cx="160" cy="100" r="6" fill="#111827" opacity="0.5" />
-      <circle cx="220" cy="140" r="5" fill="#111827" opacity="0.45" />
-      <circle cx="280" cy="100" r="7" fill="#111827" opacity="0.6" />
-      <circle cx="340" cy="60" r="5" fill="#111827" opacity="0.45" />
-      <circle cx="360" cy="100" r="8" fill="#111827" opacity="0.85" />
+      <circle cx="40" cy="100" r="4" fill="#211f1c" opacity="0.2" />
+      <circle cx="100" cy="60" r="5" fill="#211f1c" opacity="0.3" />
+      <circle cx="160" cy="100" r="6" fill="#211f1c" opacity="0.4" />
+      <circle cx="220" cy="140" r="5" fill="#211f1c" opacity="0.35" />
+      <circle cx="280" cy="100" r="7" fill="#211f1c" opacity="0.5" />
+      <circle cx="340" cy="60" r="5" fill="#211f1c" opacity="0.35" />
+      <circle cx="360" cy="100" r="8" fill="#211f1c" opacity="0.7" />
 
       {/* Small satellites around key nodes */}
-      <circle cx="160" cy="100" r="14" fill="none" stroke="#111827" strokeWidth="0.5" opacity="0.2" />
-      <circle cx="280" cy="100" r="18" fill="none" stroke="#111827" strokeWidth="0.5" opacity="0.2" />
-      <circle cx="360" cy="100" r="22" fill="none" stroke="#111827" strokeWidth="0.5" opacity="0.2" />
+      <circle cx="160" cy="100" r="14" fill="none" stroke="#211f1c" strokeWidth="0.5" opacity="0.15" />
+      <circle cx="280" cy="100" r="18" fill="none" stroke="#211f1c" strokeWidth="0.5" opacity="0.15" />
+      <circle cx="360" cy="100" r="22" fill="none" stroke="#211f1c" strokeWidth="0.5" opacity="0.15" />
     </svg>
   );
 }

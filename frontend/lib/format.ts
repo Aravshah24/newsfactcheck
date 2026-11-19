@@ -16,7 +16,7 @@ export interface Descriptor {
   description: string;
 }
 
-const NEUTRAL_CHIP = 'border-[#D1D5DB] bg-[#E5E7EB] text-[#4B5563]';
+const NEUTRAL_CHIP = 'border-stone-300 bg-stone-100 text-stone-700';
 
 function descriptor(
   label: string,
@@ -67,9 +67,9 @@ const OVERALL_VERDICTS: Record<string, Descriptor> = {
     'Insufficient evidence',
     '○',
     'neutral',
-    'text-[#4B5563]',
+    'text-stone-600',
     'The evidence retrieved is too limited or too inconsistent to sustain a conclusion.',
-    'border-[#D1D5DB] bg-[#E5E7EB] text-[#4B5563]',
+    'border-stone-300 bg-stone-100 text-stone-700',
   ),
 };
 
@@ -84,9 +84,9 @@ const SUBCLAIM_VERDICTS: Record<string, Descriptor> = {
     'Unverifiable',
     '?',
     'neutral',
-    'text-[#4B5563]',
+    'text-stone-600',
     'The subclaim could not be checked against the retrieved evidence.',
-    'border-[#D1D5DB] bg-[#E5E7EB] text-[#4B5563]',
+    'border-stone-300 bg-stone-100 text-stone-700',
   ),
 };
 
@@ -119,17 +119,17 @@ const STANCES: Record<string, Descriptor> = {
     'Neutral',
     '–',
     'neutral',
-    'text-[#4B5563]',
+    'text-stone-600',
     'The document was retrieved but does not speak to the claim directly.',
-    'border-[#D1D5DB] bg-[#E5E7EB] text-[#4B5563]',
+    'border-stone-300 bg-stone-100 text-stone-700',
   ),
   unknown: descriptor(
     'Not assessed',
     '?',
     'neutral',
-    'text-[#6B7280]',
+    'text-stone-500',
     'The document could not be assessed against the claim.',
-    'border-[#D1D5DB] bg-[#E5E7EB] text-[#4B5563]',
+    'border-stone-300 bg-stone-100 text-stone-600',
   ),
 };
 
@@ -253,7 +253,7 @@ export function isZeroWeightRole(value: string | null | undefined): boolean {
 
 function lookup(table: Record<string, Descriptor>, value: string | null | undefined): Descriptor {
   const key = (value ?? '').trim();
-  return table[key] ?? descriptor(titleCase(key) || 'Unknown', '?', 'neutral', 'text-[#4B5563]', 'No description available.', NEUTRAL_CHIP);
+  return table[key] ?? descriptor(titleCase(key) || 'Unknown', '?', 'neutral', 'text-stone-600', 'No description available.', NEUTRAL_CHIP);
 }
 
 export function overallVerdictDescriptor(value: string | null | undefined): Descriptor {

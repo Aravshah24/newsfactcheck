@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { cancelInvestigation } from '@/lib/api';
 
 /**
  * The backend runs the pipeline synchronously and reports no intermediate
@@ -43,44 +44,44 @@ export function InvestigationRunning({
   };
 
   return (
-    <div className="animate-fade-rise rounded-lg border border-[#D1D5DB] bg-[#F9FAFB]/92 backdrop-blur-md p-6 sm:p-8">
+    <div className="animate-fade-rise rounded-lg border border-paper-200 bg-white p-6 sm:p-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <p className="label-micro">Investigation in progress</p>
-          <p className="mt-2 font-serif text-lg leading-relaxed text-[#111827]">{claim}</p>
+          <p className="mt-2 font-serif text-lg leading-relaxed text-ink-900">{claim}</p>
         </div>
         <div className="text-right">
-          <p className="tnum text-2xl font-semibold text-[#111827]" aria-live="off">
+          <p className="tnum text-2xl font-semibold text-ink-800" aria-live="off">
             {formatElapsed(elapsedSeconds)}
           </p>
-          <p className="text-2xs uppercase tracking-[0.14em] text-[#6B7280]">elapsed</p>
+          <p className="text-2xs uppercase tracking-[0.14em] text-ink-400">elapsed</p>
         </div>
       </div>
 
-      <div className="mt-6 h-1 w-full overflow-hidden rounded-full bg-[#E5E7EB]" role="presentation">
-        <div className="h-full w-1/3 animate-sweep rounded-full bg-[#1F2937]" />
+      <div className="mt-6 h-1 w-full overflow-hidden rounded-full bg-paper-200" role="presentation">
+        <div className="h-full w-1/3 animate-sweep rounded-full bg-ink-400" />
       </div>
 
-      <p className="mt-4 text-sm leading-relaxed text-[#4B5563]">
+      <p className="mt-4 text-sm leading-relaxed text-ink-500">
         The backend runs each investigation synchronously and returns only when the report is complete.
         This typically takes one to two minutes.
       </p>
 
       <ul className="mt-5 space-y-2.5">
         {STAGES.map((stage) => (
-          <li key={stage} className="flex gap-3 text-sm text-[#4B5563]">
-            <span aria-hidden="true" className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-[#9CA3AF]" />
+          <li key={stage} className="flex gap-3 text-sm text-ink-500">
+            <span aria-hidden="true" className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-ink-300" />
             <span>{stage}</span>
           </li>
         ))}
       </ul>
 
-      <div className="mt-6 border-t border-[#D1D5DB] pt-4">
+      <div className="mt-6 border-t border-paper-200 pt-4">
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
             onClick={onCancel}
-            className="text-sm font-medium text-[#4B5563] underline decoration-[#D1D5DB] underline-offset-4 transition hover:text-[#111827] hover:decoration-[#4B5563]"
+            className="text-sm font-medium text-ink-600 underline decoration-paper-300 underline-offset-4 transition hover:text-ink-900 hover:decoration-ink-400"
           >
             Stop waiting
           </button>
@@ -95,28 +96,30 @@ export function InvestigationRunning({
             </button>
           )}
         </div>
-        <p className="mt-1.5 text-xs leading-relaxed text-[#6B7280]">
-          <strong className="text-[#111827]">Stop waiting:</strong> Backend keeps working; you can reopen the investigation from the list below.
+        <p className="mt-1.5 text-xs leading-relaxed text-ink-400">
+          <strong>Stop waiting:</strong> Backend keeps working; you can reopen the investigation from the list below.
+          {claimId && onCancelInvestigation && (
+            <> <br /> <strong>Cancel investigation:</strong> Actually stops the backend process. The investigation will be marked as cancelled. </>
+          )}
         </p>
       </div>
     </div>
   );
 }
 
-export function useElapsed(running: boolean): number {
+/** Ticks once a second so elapsed time advances while the request is in flight. */
+export function useElapsed(active: boolean): number {
   const [seconds, setSeconds] = useState(0);
 
   useEffect(() => {
-    if (!running) {
-      setSeconds(0);
-      return;
-    }
-    const started = Date.now();
-    const interval = setInterval(() => {
-      setSeconds(Math.floor((Date.now() - started) / 1000));
+    if (!active) return;
+    setSeconds(0);
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      setSeconds(Math.floor((Date.now() - startedAt) / 1000));
     }, 1000);
-    return () => clearInterval(interval);
-  }, [running]);
+    return () => window.clearInterval(timer);
+  }, [active]);
 
   return seconds;
 }
@@ -124,5 +127,5 @@ export function useElapsed(running: boolean): number {
 function formatElapsed(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }

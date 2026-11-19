@@ -62,12 +62,12 @@ export function ResearchReport({
   const sources = uniqueSources(evidence);
 
   return (
-    <Panel className="p-6 sm:p-8 shadow-md">
+    <Panel className="p-5 sm:p-7">
       <article className="max-w-2xl">
         {blocks.map((block, index) => (
           <section key={index} className={index > 0 ? 'mt-6' : undefined}>
             {block.heading ? (
-              <h3 className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-[#6B7280]">
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
                 {block.heading}
               </h3>
             ) : null}
@@ -77,51 +77,52 @@ export function ResearchReport({
       </article>
 
       {sources.length > 0 ? (
-        <div className="mt-7 border-t border-[#D1D5DB] pt-5">
+        <div className="mt-7 border-t border-paper-200 pt-5">
           <p className="label-micro mb-3">Sources behind this report</p>
-          <ul className="grid gap-2 sm:grid-cols-2">
+          <ul className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
             {sources.slice(0, 24).map((source) => (
               <li key={source.url} className="min-w-0 text-sm">
                 <a
                   href={source.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-baseline gap-1.5 rounded-lg border border-[#D1D5DB] bg-[#F3F4F6]/80 px-2.5 py-1 text-[#374151] transition hover:bg-white hover:text-[#111827] shadow-sm"
+                  className="flex items-baseline gap-1.5 text-ink-600 transition hover:text-ink-900"
                 >
-                  <span aria-hidden="true" className="shrink-0 text-[#9CA3AF]">
+                  <span aria-hidden="true" className="shrink-0 text-ink-300">
                     ↗
                   </span>
-                  <span className="truncate underline decoration-[#D1D5DB] underline-offset-4 hover:decoration-[#4B5563]">
+                  <span className="truncate underline decoration-paper-300 underline-offset-4 hover:decoration-ink-400">
                     {source.label}
                   </span>
                 </a>
               </li>
             ))}
           </ul>
+          {sources.length > 24 ? (
+            <p className="mt-2.5 text-2xs text-ink-400">and {sources.length - 24} more sources</p>
+          ) : null}
         </div>
       ) : null}
     </Panel>
   );
 }
 
-function uniqueSources(evidence: EvidenceItem[]): { url: string; label: string }[] {
-  const seen = new Set<string>();
-  const out: { url: string; label: string }[] = [];
-
+function uniqueSources(evidence: EvidenceItem[]): { label: string; url: string }[] {
+  const seen = new Map<string, string>();
   for (const item of evidence) {
-    const url = item.url?.trim();
-    if (!url || !/^https?:\/\//i.test(url)) continue;
-    if (seen.has(url)) continue;
-    seen.add(url);
-
-    const label =
-      item.title?.trim() ||
-      item.publisher?.trim() ||
-      url.replace(/^https?:\/\/(?:www\.)?/, '').split('/')[0] ||
-      url;
-
-    out.push({ url, label });
+    if (!item.url || !/^https?:\/\//i.test(item.url)) continue;
+    if (seen.has(item.url)) continue;
+    const domain = item.publisher?.trim() || hostOf(item.url);
+    const title = item.title?.trim();
+    seen.set(item.url, title ? `${title} — ${domain}` : domain);
   }
+  return Array.from(seen, ([url, label]) => ({ label, url }));
+}
 
-  return out;
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
 }
